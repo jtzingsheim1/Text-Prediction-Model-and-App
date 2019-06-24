@@ -17,10 +17,52 @@
 # with the data and build a predictive model
 
 
-#library()
+library(readtext)
+
+
+# Part 0) Function definitions--------------------------------------------------
+
+DLAndUnzipData <- function() {
+  # Downloads and unzips the capstone dataset if needed, returns folder name
+  #
+  # Args:
+  #   None
+  #
+  # Returns:
+  #   The name of the folder containing the data in the current directory
+  data.filename <- "Coursera-SwiftKey.zip"
+  # Check if the file already exists, download if it does not
+  if (!file.exists(data.filename)) {
+    print("Downloading Data File")
+    url <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+    download.file(url, data.filename)
+  }
+  
+  # Check if the file is already unzipped, unzip if needed
+  data.folder <- "final"
+  if (!file.exists(data.folder)) {
+    print("Unzipping Data File")
+    unzip(data.filename)
+  }
+  data.folder
+}
 
 
 # Part 1) Load and process the data---------------------------------------------
+
+test <- DLAndUnzipData()
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
