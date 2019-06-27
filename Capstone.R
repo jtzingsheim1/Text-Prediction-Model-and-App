@@ -54,27 +54,35 @@ DLAndUnzipData <- function() {
 
 # Download and unzip the data, store folder name as object
 data.folder <- DLAndUnzipData()
+chunk.size <- 5
 
-# Create a small practice file from a real file
-data.folder %>%
-  paste0("/en_US/en_US.twitter.txt") %>%  # Append the subfolder and filename
-  readLines(n = 5) %>%
-  writeLines(con = "final/en_US/jz.txt")
+# # Create a small practice file from a real file
+# data.folder %>%
+#   paste0("/en_US/en_US.twitter.txt") %>%  # Append the subfolder and filename
+#   readLines(n = chunk.size) %>%
+#   writeLines(con = "final/en_US/jz.txt")
+
+# # Create an object to compare to
+# test.object <- data.folder %>%
+#   paste0("/en_US/en_US.twitter.txt") %>%  # Append the subfolder and filename
+#   readLines(n = chunk.size)
+
+# # Load in the dataset to experiment
+# jz.corp <- data.folder %>%
+#   paste0("/en_US/jz.txt") %>%  # Append the subfolder and filename
+#   readtext()  %>%  # 1 obs. of 2 variables
+#   corpus()  # List of 4
 
 # Create an object to compare to
-test.object <- data.folder %>%
+jz.txt <- data.folder %>%
   paste0("/en_US/en_US.twitter.txt") %>%  # Append the subfolder and filename
-  readLines(n = 5)
+  readLines(n = chunk.size)
 
-# Load in the dataset to experiment
-jz.corp <- data.folder %>%
-  paste0("/en_US/jz.txt") %>%  # Append the subfolder and filename
-  readtext()  %>%  # 1 obs. of 2 variables
-  corpus()  # List of 4
+#rm(data.folder, DLAndUnzipData, chunk.size)
 
-rm(data.folder, DLAndUnzipData)
-
-jz.tkn <- tokens(jz.corp, what = "sentence")
+jz.corp <- corpus(jz.txt)
+jz.tkn <- tokens(jz.txt)
+jz.dfm <- dfm(jz.corp)
 
 #test <- tokens(en.jz.tkn[[1]][1])
 
