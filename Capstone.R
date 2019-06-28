@@ -18,7 +18,7 @@
 
 
 library(tidyverse)
-library(readtext)
+#library(readtext)
 library(quanteda)
 
 
@@ -56,35 +56,26 @@ DLAndUnzipData <- function() {
 data.folder <- DLAndUnzipData()
 chunk.size <- 5
 
-# # Create a small practice file from a real file
-# data.folder %>%
-#   paste0("/en_US/en_US.twitter.txt") %>%  # Append the subfolder and filename
-#   readLines(n = chunk.size) %>%
-#   writeLines(con = "final/en_US/jz.txt")
-
-# # Create an object to compare to
-# test.object <- data.folder %>%
-#   paste0("/en_US/en_US.twitter.txt") %>%  # Append the subfolder and filename
-#   readLines(n = chunk.size)
-
-# # Load in the dataset to experiment
-# jz.corp <- data.folder %>%
-#   paste0("/en_US/jz.txt") %>%  # Append the subfolder and filename
-#   readtext()  %>%  # 1 obs. of 2 variables
-#   corpus()  # List of 4
-
-# Create an object to compare to
-jz.txt <- data.folder %>%
-  paste0("/en_US/en_US.twitter.txt") %>%  # Append the subfolder and filename
+# Create a small subset of text to experiment with
+my.text <- data.folder %>%
+  file.path("en_US", "en_US.twitter.txt") %>%  # Append subfolder and filename
   readLines(n = chunk.size)
 
-#rm(data.folder, DLAndUnzipData, chunk.size)
 
-jz.corp <- corpus(jz.txt)
-jz.tkn <- tokens(jz.txt)
-jz.dfm <- dfm(jz.corp)
 
-#test <- tokens(en.jz.tkn[[1]][1])
+
+my.corp <- corpus(my.text)
+#my.tkn.sent <- tokens(my.text, what = "sentence")
+my.tkn.word <- tokens(my.text, what = "word", remove_numbers = TRUE,
+                      remove_punct = TRUE, remove_symbols = TRUE) %>%
+  tokens_select(pattern = stopwords('en'), selection = 'remove')
+my.dfm <- dfm(my.corp)
+my.df <- convert(my.dfm, to = "matrix") %>%
+  colSums()
+
+my.text2 <- data.folder %>%
+  paste0("/en_US/en_US.twitter.txt") %>%  # Append the subfolder and filename
+  readLines(n = chunk.size)
 
 
 
