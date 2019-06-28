@@ -54,28 +54,30 @@ DLAndUnzipData <- function() {
 
 # Download and unzip the data, store folder name as object
 data.folder <- DLAndUnzipData()
-chunk.size <- 5
+chunk.size <- 30000
 
 # Create a small subset of text to experiment with
 my.text <- data.folder %>%
   file.path("en_US", "en_US.twitter.txt") %>%  # Append subfolder and filename
   readLines(n = chunk.size)
 
-
-
-
+# Turn text into corpus
 my.corp <- corpus(my.text)
-#my.tkn.sent <- tokens(my.text, what = "sentence")
-my.tkn.word <- tokens(my.text, what = "word", remove_numbers = TRUE,
+
+# Tokenize and clean text
+my.tkn <- tokens(my.text, what = "fasterword", remove_numbers = TRUE,
                       remove_punct = TRUE, remove_symbols = TRUE) %>%
   tokens_select(pattern = stopwords('en'), selection = 'remove')
-my.dfm <- dfm(my.corp)
-my.df <- convert(my.dfm, to = "matrix") %>%
-  colSums()
 
-my.text2 <- data.folder %>%
-  paste0("/en_US/en_US.twitter.txt") %>%  # Append the subfolder and filename
-  readLines(n = chunk.size)
+# Build dfm
+my.dfm <- dfm(my.tkn)
+
+# Check number of features and their frequency
+my.feat <- nfeat(my.dfm)
+my.data <- textstat_frequency(my.dfm)
+print(head(my.data))
+
+
 
 
 
