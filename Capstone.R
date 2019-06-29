@@ -54,20 +54,41 @@ DLAndUnzipData <- function() {
 
 # Download and unzip the data, store folder name as object
 data.folder <- DLAndUnzipData()
-chunk.size <- 30000
+chunk.size <- 10000  # Twitter file is about 2.4 million lines
+
+# # Profile 1
+# prof1 <- system.time(data.folder %>%
+#   file.path("en_US", "en_US.twitter.txt") %>%  # Append subfolder and filename
+#   readLines(n = chunk.size))
 
 # Create a small subset of text to experiment with
 my.text <- data.folder %>%
   file.path("en_US", "en_US.twitter.txt") %>%  # Append subfolder and filename
   readLines(n = chunk.size)
 
+# # Profile 2
+# prof2 <- system.time(corpus(my.text))
+
 # Turn text into corpus
 my.corp <- corpus(my.text)
 
+# # Profile 3, this is the slow step
+# prof3a <- system.time(tokens(my.text, what = "word", remove_numbers = TRUE,
+#                             remove_punct = TRUE, remove_symbols = TRUE,
+#                             remove_twitter = TRUE, remove_url = TRUE) %>%
+#                        tokens_select(pattern = stopwords('en'),
+#                                      selection = 'remove'))
+
 # Tokenize and clean text
-my.tkn <- tokens(my.text, what = "fasterword", remove_numbers = TRUE,
-                      remove_punct = TRUE, remove_symbols = TRUE) %>%
+my.tkn <- tokens(my.text, what = "word", remove_numbers = TRUE,
+                 remove_punct = TRUE, remove_symbols = TRUE,
+                 remove_twitter = TRUE, remove_url = TRUE) %>%
   tokens_select(pattern = stopwords('en'), selection = 'remove')
+#length(stopwords("english"))  # 175L
+
+# # Profile 4
+# prof4 <- system.time(dfm(my.tkn))
+# Total time was about 1.86s for 30k chunk @ word
 
 # Build dfm
 my.dfm <- dfm(my.tkn)
@@ -76,6 +97,12 @@ my.dfm <- dfm(my.tkn)
 my.feat <- nfeat(my.dfm)
 my.data <- textstat_frequency(my.dfm)
 print(head(my.data))
+print(tail(my.data))
+
+
+lines(x = 1:my.feat, y = my.data$frequency)
+
+
 
 
 
@@ -88,7 +115,15 @@ print(head(my.data))
 # and tables to understand variation in the frequencies of words and word pairs
 # in the data.
 
-
+# - Some words are more frequent than others - what are the distributions of
+# word frequencies?
+# - What are the frequencies of 2-grams and 3-grams in the dataset?
+# - How many unique words do you need in a frequency sorted dictionary to cover
+# 50% of all word instances in the language? 90%?
+# - How do you evaluate how many of the words come from foreign languages?
+# - Can you think of a way to increase the coverage -- identifying words that
+# may not be in the corpora or using a smaller number of words in the dictionary
+# to cover the same number of phrases?
 
 
 
