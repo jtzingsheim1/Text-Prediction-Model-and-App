@@ -54,7 +54,7 @@ DLAndUnzipData <- function() {
 
 # Download and unzip the data, store folder name as object
 data.folder <- DLAndUnzipData()
-chunk.size <- 10000  # Twitter file is about 2.4 million lines
+chunk.size <- 5000  # Twitter file is about 2.4 million lines
 
 # # Profile 1
 # prof1 <- system.time(data.folder %>%
@@ -66,64 +66,153 @@ my.text <- data.folder %>%
   file.path("en_US", "en_US.twitter.txt") %>%  # Append subfolder and filename
   readLines(n = chunk.size)
 
+rm(DLAndUnzipData, data.folder, chunk.size)
+
 # # Profile 2
 # prof2 <- system.time(corpus(my.text))
 
 # Turn text into corpus
 my.corp <- corpus(my.text)
-
-# # Profile 3, this is the slow step
-# prof3a <- system.time(tokens(my.text, what = "word", remove_numbers = TRUE,
-#                             remove_punct = TRUE, remove_symbols = TRUE,
-#                             remove_twitter = TRUE, remove_url = TRUE) %>%
-#                        tokens_select(pattern = stopwords('en'),
-#                                      selection = 'remove'))
+#rm(my.text)
 
 # Tokenize and clean text
-my.tkn <- tokens(my.text, what = "word", remove_numbers = TRUE,
+my.tkn1 <- tokens(my.corp, what = "word", remove_numbers = TRUE,
                  remove_punct = TRUE, remove_symbols = TRUE,
-                 remove_twitter = TRUE, remove_url = TRUE) %>%
-  tokens_select(pattern = stopwords('en'), selection = 'remove')
-#length(stopwords("english"))  # 175L
+                 remove_twitter = TRUE, remove_hyphens = TRUE,
+                 remove_url = TRUE, ngrams = 1, verbose = F)
+#rm(my.corp)
+
+# Build dfm of unigrams and convert to dataframe
+my.unigram <- my.tkn1 %>%
+  dfm() %>%
+  textstat_frequency()
+
+# Plot unigram frequency by index
+plot(x = 1:nrow(my.unigram), y = my.unigram$frequency,
+     xlab = "Word Index (sorted)", ylab = "Word Frequency [count]")
+
+# Display the top ten unigrams and frequencies
+my.unigram %>%
+  select(feature:docfreq) %>%
+  filter(rank < 11) %>%
+  print()
+
+# Check how many words are needed to cover 50 and 90 percent of occurances
+occurances <- sum(my.unigram$frequency)  # Total count of word occurances
+# Create a table that inclues the cumulative frequencies and fraction
+frequencies <- my.unigram %>%
+  mutate(cum.freq = cumsum(frequency), cum.frac = cum.freq / occurances) %>%
+  select(cum.frac)
+words.5 <- frequencies %>%
+  filter(cum.frac <= 0.5) %>%
+  nrow()
+words.9 <- frequencies %>%
+  filter(cum.frac <= 0.9) %>%
+  nrow()
+# Plot cumulative occurance fraction by word index
+plot(x = 1:nrow(frequencies), y = frequencies$cum.frac,
+     xlab = "Word Index (sorted)", ylab = "Cumulative Occurance Fraction")
+rm(occurances, frequencies)
+
+
+
+#rm(my.unigram)
+
+# Convert the 1-gram tokens to 2-gram tokens
+my.tkn2 <- tokens_ngrams(my.tkn1, n = 2)
+
+# Build dfm of bigrams and convert to dataframe
+my.bigram <- my.tkn2 %>%
+  dfm() %>%
+  textstat_frequency()
+#rm(my.tkn2)
+
+# # Plot bigram frequency by index
+# plot(x = 1:nrow(my.bigram), y = my.bigram$frequency,
+#      xlab = "Bigram Index (sorted)", ylab = "Bigram Frequency [count]")
+#rm(my.bigram)
+
+# Display the top ten bigrams and frequencies
+my.bigram %>%
+  select(feature:docfreq) %>%
+  filter(rank < 11) %>%
+  print()
+
+# Convert the 1-gram tokens to 3-gram tokens
+my.tkn3 <- tokens_ngrams(my.tkn1, n = 3)
+#rm(my.tkn1)
+
+# Build dfm of trigrams and convert to dataframe
+my.trigram <- my.tkn3 %>%
+  dfm(verbose = F) %>%
+  textstat_frequency()
+#rm(my.tkn3)
+
+# # Plot trigram frequency by index
+# plot(x = 1:nrow(my.trigram), y = my.trigram$frequency,
+#      xlab = "Trigram Index (sorted)", ylab = "Trigram Frequency [count]")
+#rm(my.trigram)
+
+# Display the top ten trigrams and frequencies
+my.trigram %>%
+  select(feature:docfreq) %>%
+  filter(rank < 11) %>%
+  print()
+
+
+
+# my.tkn2x <- tokens(my.text, what = "word", remove_numbers = TRUE,
+#                   remove_punct = TRUE, remove_symbols = TRUE,
+#                   remove_twitter = TRUE, remove_hyphens = TRUE,
+#                   remove_url = TRUE, ngrams = 2, verbose = TRUE)
+
+# my.tkn12 <- tokens(my.text, what = "word", remove_numbers = TRUE,
+#                   remove_punct = TRUE, remove_symbols = TRUE,
+#                   remove_twitter = TRUE, remove_hyphens = TRUE,
+#                   remove_url = TRUE, ngrams = 1:2, verbose = TRUE)
 
 # # Profile 4
 # prof4 <- system.time(dfm(my.tkn))
 # Total time was about 1.86s for 30k chunk @ word
 
-# Build dfm
-my.dfm <- dfm(my.tkn)
-
-# Check number of features and their frequency
-my.feat <- nfeat(my.dfm)
-my.data <- textstat_frequency(my.dfm)
-print(head(my.data))
-print(tail(my.data))
-
-
-lines(x = 1:my.feat, y = my.data$frequency)
 
 
 
 
+# my.data12 <- my.tkn12 %>%
+#   #tokens_remove(pattern = "*_*") %>%
+#   dfm(remove = "*_*", verbose = TRUE) %>%
+#   textstat_frequency()
+# 
+# my.data21 <- my.tkn12 %>%
+#   #tokens_keep(pattern = "*_*") %>%
+#   dfm(select = "*_*", verbose = TRUE) %>%
+#   textstat_frequency()
+# 
+# my.datax <- my.tkn12 %>%
+#   dfm(verbose = TRUE) %>%
+#   textstat_frequency()
+
+# print(head(my.data))
+# print(tail(my.data))
 
 
 
-# Project instructions:
-# Exploratory analysis - perform a thorough exploratory analysis of the data,
-# understanding the distribution of words and relationship between the words in
-# the corpora. Understand frequencies of words and word pairs - build figures
-# and tables to understand variation in the frequencies of words and word pairs
-# in the data.
+# # Build bigram
+# my.bigram <- tokens_ngrams(my.tkn, n = 2)
 
-# - Some words are more frequent than others - what are the distributions of
-# word frequencies?
-# - What are the frequencies of 2-grams and 3-grams in the dataset?
-# - How many unique words do you need in a frequency sorted dictionary to cover
-# 50% of all word instances in the language? 90%?
-# - How do you evaluate how many of the words come from foreign languages?
-# - Can you think of a way to increase the coverage -- identifying words that
-# may not be in the corpora or using a smaller number of words in the dictionary
-# to cover the same number of phrases?
+
+
+
+# Review criteria:
+# - Does the link lead to an HTML page describing the exploratory analysis of
+# the training data set?
+# - Has the data scientist done basic summaries of the three files? Word counts,
+# line counts and basic data tables?
+# - Has the data scientist made basic plots, such as histograms to illustrate
+# features of the data?
+# - Was the report written in a brief, concise style, in a way that a non-data
+# scientist manager could appreciate?
 
 
 
