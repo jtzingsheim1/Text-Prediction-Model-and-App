@@ -67,8 +67,10 @@ AssembleCorpus <- function(n.lines, sub.dir = "en_US") {
   
   # Read in the data and combine into a single corpus
   text.list <- map(file.paths, readLines, n = n.lines)
-  corp.list <- map(text.list, corpus)
-  full.corpus <- corp.list[[1]] + corp.list[[2]] + corp.list[[3]]
+  blogs.corp <- corpus(text.list[[1]])
+  news.corp <- corpus(text.list[[2]])
+  twitter.corp <- corpus(text.list[[3]])
+  full.corpus <- blogs.corp + news.corp + twitter.corp
   
   return(full.corpus)
 }
@@ -76,21 +78,8 @@ AssembleCorpus <- function(n.lines, sub.dir = "en_US") {
 
 # Part 1) Load and process the data---------------------------------------------
 
-# # Download and unzip the data, store folder name as object
-# data.folder <- DLAndUnzipData()
-# chunk.size <- 5000  # Twitter file is about 2.4 million lines
-# 
-# # Create a small subset of text to experiment with
-# my.text <- data.folder %>%
-#   file.path("en_US", "en_US.twitter.txt") %>%  # Append subfolder and filename
-#   readLines(n = chunk.size)
-# rm(DLAndUnzipData, data.folder, chunk.size)
-
-# # Turn text into corpus
-# my.corp <- corpus(my.text)
-# #rm(my.text)
-
-my.corp <- AssembleCorpus(n.lines = 3)
+# Read in text data and assemble into corpus
+my.corp <- AssembleCorpus(n.lines = 1000)
 
 # Tokenize and clean text
 # The predictive model will not attempt to predict: numbers, punctuation,
@@ -99,12 +88,12 @@ my.tkn1 <- tokens(my.corp, what = "word", remove_numbers = TRUE,
                  remove_punct = TRUE, remove_symbols = TRUE,
                  remove_twitter = TRUE, remove_hyphens = TRUE,
                  remove_url = TRUE, ngrams = 1, verbose = FALSE)
-#rm(my.corp)
-
-# Build dfm of unigrams and convert to dataframe
-my.unigram <- my.tkn1 %>%
-  dfm() %>%
-  textstat_frequency()
+# #rm(my.corp)
+# 
+# # Build dfm of unigrams and convert to dataframe
+# my.unigram <- my.tkn1 %>%
+#   dfm() %>%
+#   textstat_frequency()
 
 # # Plot unigram frequency by index
 # plot(x = 1:nrow(my.unigram), y = my.unigram$frequency,
