@@ -10,6 +10,7 @@ output: html_document
 
 library(tidyverse)
 library(quanteda)
+library(knitr)
 
 DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip") {
   # Downloads and unzips the capstone dataset if needed, returns folder name
@@ -91,14 +92,107 @@ AssembleSummary <- function(corpus.object) {
 
 ```
 
+
 ## Overview
 
-This is the first milestone report for my word prediction project which is the
-capstone project of the Data Science Specialization from Johns Hopkins
-University on Coursera. The instructions say to create an HTML report which
-summarizes the text files that serve as the corpus of text for the project. The
-report should include figures that show interesting features identified during
-exploratory data analysis.
+This is the first milestone report for my word prediction project which is for
+the capstone project of the Data Science Specialization from Johns Hopkins
+University on Coursera. The ultimate goal of the project is to create an
+application that uses a model to predict which word comes next based on a
+sequence of input words. The instructions for this milestone report say to
+create an HTML report which summarizes the text files that will eventually form
+the basis of the predictive model. The report should include figures that show
+interesting features identified during exploratory data analysis.
+
+The data for this project were downloaded through the course website and
+pre-processed. The data were then explored for interesting features that will
+guide the remaining portions of the project. Additional information such as the
+full instructions, raw data, and initial script can be found in the
+[GitHub repo][1] for this project.
+
+[1]: xxxxx "GitHub repo for project"
+
+
+## Introduction
+
+A core part of the broader project is to create a predictive text model, and an
+effective model should have large and diverse sample dataset to train on. The
+course provides a large dataset which was obtained with a web crawler, and the
+sources include: blogs, news articles, and Twitter. Data were collected in four
+languages, but this project will only focus on English data.
+
+The large size of the dataset could present challenges to both the memory and
+processing speed of the machine that works with the data or the predictive
+model. The table below summarizes the three files that were provided in the
+English language. 
+
+```{r load.data, include = FALSE, cache = TRUE}
+
+# Set how many lines to read in from the text files
+chunk.size <- 1000
+
+# Read in text data and assemble into 3 corpora
+blogs.corp <- AssembleCorpus(n.lines = chunk.size, file.selection = "blogs")
+news.corp <- AssembleCorpus(n.lines = chunk.size, file.selection = "news")
+twitter.corp <- AssembleCorpus(n.lines = chunk.size, file.selection = "twitter")
+
+# Tokenize and clean text
+# The predictive model will not attempt to predict: numbers, punctuation,
+# symbols, twitter handles, hyphens, or urls, so these are all removed
+blogs.tkn <- tokens(blogs.corp, remove_numbers = T, remove_punct = T,
+                    remove_symbols = T, remove_twitter = T, remove_hyphens = T,
+                    remove_url = T)
+news.tkn <- tokens(news.corp, remove_numbers = T, remove_punct = T,
+                    remove_symbols = T, remove_twitter = T, remove_hyphens = T,
+                    remove_url = T)
+twitter.tkn <- tokens(twitter.corp, remove_numbers = T, remove_punct = T,
+                    remove_symbols = T, remove_twitter = T, remove_hyphens = T,
+                    remove_url = T)
+
+# Count the number of words in each token object and add to the corpus metadata
+blogs.corp$metadata$word.count <- sum(ntoken(blogs.tkn))
+news.corp$metadata$word.count <- sum(ntoken(news.tkn))
+twitter.corp$metadata$word.count <- sum(ntoken(twitter.tkn))
+
+```
+
+```{r print.table, echo = FALSE, cache = TRUE}
+
+# Construct a table that summarizes the corpora
+summary.table <- bind_rows(AssembleSummary(blogs.corp),
+                           AssembleSummary(news.corp),
+                           AssembleSummary(twitter.corp))
+
+# Update formatting of the table
+summary.table <- summary.table %>%
+  select(-created) %>%
+  mutate(file.size = round(file.size / (1024 ^ 2), 1))
+
+# Print the output table
+column.names <- c("File Name", "File Size [Mb]", "Number of Lines",
+                  "Number of Words")
+kable(summary.table, col.names = column.names)
+
+```
+
+The table shows that the combined file size is over 500 Mb, so care must be
+taken as these data loaded and processed. The word count listed in the table is
+after some light pre-processing which removed some elements like numbers, urls,
+and twitter handles. Elements like these can be removed since the predictive
+model will not attempt to predict these types of features.
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
