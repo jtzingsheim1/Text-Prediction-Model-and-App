@@ -1,0 +1,107 @@
+---
+title: "Word Prediction Project Milestone Report"
+author: "Justin Z"
+date: "June 30, 2019"
+output: html_document
+---
+
+
+```{r setup, include = FALSE}
+
+library(tidyverse)
+library(quanteda)
+
+DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip") {
+  # Downloads and unzips the capstone dataset if needed, returns folder name
+  #
+  # Args:
+  #   data.filename: An optional name for the zip file, to replace the default
+  #
+  # Returns:
+  #   A chacacter value of the name of the folder containing the data
+
+  # Check if the file already exists, download if it does not
+  if (!file.exists(data.filename)) {
+    print("Downloading Data File")
+    url <- paste0("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/",
+                  "Coursera-SwiftKey.zip")
+    download.file(url, data.filename)
+  }
+  
+  # Check if the file is already unzipped, unzip if needed
+  data.folder <- "final"
+  if (!file.exists(data.folder)) {
+    print("Unzipping Data File")
+    unzip(data.filename)
+  }
+  return(data.folder)  # Return directory of unzipped file contents as character
+}
+
+AssembleCorpus <- function(n.lines,
+                           file.selection = c("blogs", "news", "twitter"),
+                           sub.dir = c("en_US", "de_DE", "fi_FI", "ru_RU")) {
+  # Reads in specified number of lines from the specified file, assembles corpus
+  #
+  # Args:
+  #   n.lines: The number of lines to read in from the text with readLines()
+  #   file: Select which file to read from, one of: blogs, news, or twitter
+  #   sub.dir: The subdirectory to read in files from, "en_US" by default
+  #
+  # Returns:
+  #   A corpus of the text from the selected file, one "text" per line
+  
+  # Check and set arguments
+  file.selection <- match.arg(file.selection)
+  sub.dir <- match.arg(sub.dir)
+
+  # Download and unzip the data, store folder name and file path
+  filename <- paste(sub.dir, file.selection, "txt", sep = ".")  # Build file name
+  filepath <- file.path(DLAndUnzipData(), sub.dir, filename)  # Build file path
+  file.corpus <- filepath %>%
+    readLines(n = n.lines) %>%  # Read in text
+    corpus()  # Convert to corpus
+  
+  # Set metadata for the corpus
+  docnames(file.corpus) <- paste0(file.selection, 1:ndoc(file.corpus))
+  file.corpus$metadata$source <- filename
+  file.corpus$metadata$file.size <- file.info(filepath)$size
+  file.corpus$metadata$rows.read <- ndoc(file.corpus)
+  
+  # Return the corpus
+  return(file.corpus)
+}
+
+AssembleSummary <- function(corpus.object) {
+  # Assembles a data frame from the metadata of a corpus
+  #
+  # Args:
+  #   corpus.object: The corpus from which to extract the metadata
+  #
+  # Returns:
+  #   A data frame of the metadata
+  
+  # Extract metadata from corpus and convert to data frame
+  corpus.metadata <- corpus.object %>%
+    metacorpus() %>%
+    as.data.frame(stringsAsFactors = FALSE)
+  
+  # Return the metadata as a data frame
+  return(corpus.metadata)
+}
+
+```
+
+## Overview
+
+This is the first milestone report for my word prediction project which is the
+capstone project of the Data Science Specialization from Johns Hopkins
+University on Coursera. The instructions say to create an HTML report which
+summarizes the text files that serve as the corpus of text for the project. The
+report should include figures that show interesting features identified during
+exploratory data analysis.
+
+
+
+
+
+
