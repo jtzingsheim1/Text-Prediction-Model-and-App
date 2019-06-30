@@ -82,10 +82,28 @@ AssembleCorpus <- function(n.lines,
   docnames(file.corpus) <- paste0(file.selection, 1:ndoc(file.corpus))
   file.corpus$metadata$source <- filename
   file.corpus$metadata$file.size <- file.info(filepath)$size
-  file.corpus$metadata$rows.read <- nrow(file.corpus$documents)
+  file.corpus$metadata$rows.read <- ndoc(file.corpus)
   
   # Return the corpus
   return(file.corpus)
+}
+
+AssembleSummary <- function(corpus.object) {
+  # Assembles a data frame from the metadata of a corpus
+  #
+  # Args:
+  #   corpus.object: The corpus from which to extract the metadata
+  #
+  # Returns:
+  #   A data frame of the metadata
+  
+  # Extract metadata from corpus and convert to data frame
+  corpus.metadata <- corpus.object %>%
+    metacorpus() %>%
+    as.data.frame(stringsAsFactors = FALSE)
+  
+  # Return the metadata as a data frame
+  return(corpus.metadata)
 }
 
 
@@ -94,9 +112,9 @@ AssembleCorpus <- function(n.lines,
 chunk.size <- 3
 
 # Read in text data and assemble into corpora
-blogs.corp <- AssembleCorpus(n.lines = chunk.size, file = "blogs")
-news.corp <- AssembleCorpus(n.lines = chunk.size, file = "news")
-twitter.corp <- AssembleCorpus(n.lines = chunk.size, file = "twitter")
+blogs.corp <- AssembleCorpus(n.lines = chunk.size, file.selection = "blogs")
+news.corp <- AssembleCorpus(n.lines = chunk.size, file.selection = "news")
+twitter.corp <- AssembleCorpus(n.lines = chunk.size, file.selection = "twitter")
 
 # Tokenize and clean text
 # The predictive model will not attempt to predict: numbers, punctuation,
@@ -111,12 +129,18 @@ twitter.tkn <- tokens(twitter.corp, remove_numbers = T, remove_punct = T,
                     remove_symbols = T, remove_twitter = T, remove_hyphens = T,
                     remove_url = T)
 
-# Count the number of words in each token object
-blogs.wc <- blogs.tkn %>%
-  dfm() %>%
-  textstat_frequency() %>%
-  select(frequency) %>%
-  sum()
+# Count the number of words in each token object and add to the corpus metadata
+blogs.corp$metadata$word.count <- sum(ntoken(blogs.tkn))
+news.corp$metadata$word.count <- sum(ntoken(news.tkn))
+twitter.corp$metadata$word.count <- sum(ntoken(twitter.tkn))
+
+# Construct a table that summarizes the corpora
+summary.table <- bind_rows(AssembleSummary(blogs.corp),
+                           AssembleSummary(news.corp),
+                           AssembleSummary(twitter.corp))
+summary.table <- summary.table %>%
+  select(-created) %>%
+  mutate(file.size = round(file.size / (1024 ^ 2), 1))
 
 # # Build dfm of unigrams and convert to dataframe
 # my.unigram <- my.tkn1 %>%
