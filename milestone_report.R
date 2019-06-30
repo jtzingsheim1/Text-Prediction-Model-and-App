@@ -6,7 +6,7 @@
 # first capstone project from Johns Hopkins University within the Data Science
 # Specialization on Coursera.
 #
-# Teh review criteria for this part of the project are:
+# The review criteria for this part of the project are:
 # - Does the link lead to an HTML page describing the exploratory analysis of
 # the training data set?
 # - Has the data scientist done basic summaries of the three files? Word counts,
@@ -22,7 +22,6 @@
 
 
 library(tidyverse)
-#library(readtext)
 library(quanteda)
 
 
@@ -110,7 +109,7 @@ AssembleSummary <- function(corpus.object) {
 # Part 1) Load the data, create tokens, and build summary table-----------------
 
 # Set how many lines to read in from the text files
-chunk.size <- 3
+chunk.size <- 1000
 
 # Read in text data and assemble into corpora
 blogs.corp <- AssembleCorpus(n.lines = chunk.size, file.selection = "blogs")
@@ -225,6 +224,11 @@ trigram <- all.tkn.tri %>%
   dfm() %>%
   textstat_frequency()
 rm(all.tkn.tri)
+
+# Check total number of trigrams
+trigram %>%
+  nrow() %>%
+  print()
 
 # Display the top ten trigrams and frequencies
 trigram %>%
