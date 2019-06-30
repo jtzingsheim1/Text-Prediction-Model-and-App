@@ -107,8 +107,9 @@ AssembleSummary <- function(corpus.object) {
 }
 
 
-# Part 1) Load and process the data---------------------------------------------
+# Part 1) Load the data, create tokens, and build summary table-----------------
 
+# Set how many lines to read in from the text files
 chunk.size <- 3
 
 # Read in text data and assemble into corpora
@@ -142,85 +143,95 @@ summary.table <- summary.table %>%
   select(-created) %>%
   mutate(file.size = round(file.size / (1024 ^ 2), 1))
 
-# # Build dfm of unigrams and convert to dataframe
-# my.unigram <- my.tkn1 %>%
-#   dfm() %>%
-#   textstat_frequency()
+
+# Part 2) Combine texts, explore unigram----------------------------------------
+
+# Remove unneeded objects to free up memory
+rm(DLAndUnzipData, AssembleCorpus, AssembleSummary, chunk.size, blogs.corp,
+   news.corp, twitter.corp, summary.table)
+
+# Combine tokens into a single object
+all.tkn <- blogs.tkn + news.tkn + twitter.tkn
+rm(blogs.tkn, news.tkn, twitter.tkn)
+
+# Build dfm of unigrams and convert to dataframe
+unigram <- all.tkn %>%
+  dfm() %>%
+  textstat_frequency()
+
+# Plot unigram frequency by index
+plot(x = 1:nrow(unigram), y = unigram$frequency,
+     xlab = "Word Index (sorted)", ylab = "Word Frequency [count]")
+
+# Display the top ten unigrams and frequencies
+unigram %>%
+  select(feature:docfreq) %>%
+  slice(1:10) %>%
+  print()
+
+# Check how many words are needed to cover 50 and 90 percent of occurances
+occurances <- sum(unigram$frequency)  # Total count of word occurances
+# Create a table that includes the cumulative frequencies and fraction
+frequencies <- unigram %>%
+  mutate(cum.freq = cumsum(frequency), cum.frac = cum.freq / occurances) %>%
+  select(cum.frac)
+# Find index of 50th percentile
+frequencies %>%
+  filter(cum.frac <= 0.5) %>%
+  nrow() %>%
+  print()
+# Find index of 90th percentile
+frequencies %>%
+  filter(cum.frac <= 0.9) %>%
+  nrow() %>%
+  print()
+
+# Plot cumulative occurance fraction by word index
+plot(x = 1:nrow(frequencies), y = frequencies$cum.frac,
+     xlab = "Word Index (sorted)", ylab = "Cumulative Occurance Fraction")
+rm(occurances, frequencies)
+rm(unigram)
 
 
+# Part 3) Explore bigram and trigram--------------------------------------------
 
+# Convert the 1-gram tokens to 2-gram tokens
+all.tkn.bi <- tokens_ngrams(all.tkn, n = 2)
 
+# Build dfm of bigrams and convert to dataframe
+bigram <- all.tkn.bi %>%
+  dfm() %>%
+  textstat_frequency()
+rm(all.tkn.bi)
 
+# Check total number of bigrams
+bigram %>%
+  nrow() %>%
+  print()
 
+# Display the top ten bigrams and frequencies
+bigram %>%
+  select(feature:docfreq) %>%
+  slice(1:10) %>%
+  print()
+rm(bigram)
 
-# # Plot unigram frequency by index
-# plot(x = 1:nrow(my.unigram), y = my.unigram$frequency,
-#      xlab = "Word Index (sorted)", ylab = "Word Frequency [count]")
-# 
-# # Display the top ten unigrams and frequencies
-# my.unigram %>%
-#   select(feature:docfreq) %>%
-#   filter(rank < 11) %>%
-#   print()
+# Convert the 1-gram tokens to 3-gram tokens
+all.tkn.tri <- tokens_ngrams(all.tkn, n = 3)
+rm(all.tkn)
 
-# # Check how many words are needed to cover 50 and 90 percent of occurances
-# occurances <- sum(my.unigram$frequency)  # Total count of word occurances
-# # Create a table that inclues the cumulative frequencies and fraction
-# frequencies <- my.unigram %>%
-#   mutate(cum.freq = cumsum(frequency), cum.frac = cum.freq / occurances) %>%
-#   select(cum.frac)
-# words.5 <- frequencies %>%
-#   filter(cum.frac <= 0.5) %>%
-#   nrow()
-# words.9 <- frequencies %>%
-#   filter(cum.frac <= 0.9) %>%
-#   nrow()
-# # Plot cumulative occurance fraction by word index
-# plot(x = 1:nrow(frequencies), y = frequencies$cum.frac,
-#      xlab = "Word Index (sorted)", ylab = "Cumulative Occurance Fraction")
-# rm(occurances, frequencies)
-# #rm(my.unigram)
+# Build dfm of trigrams and convert to dataframe
+trigram <- all.tkn.tri %>%
+  dfm() %>%
+  textstat_frequency()
+rm(all.tkn.tri)
 
-# # Convert the 1-gram tokens to 2-gram tokens
-# my.tkn2 <- tokens_ngrams(my.tkn1, n = 2)
-# 
-# # Build dfm of bigrams and convert to dataframe
-# my.bigram <- my.tkn2 %>%
-#   dfm() %>%
-#   textstat_frequency()
-# #rm(my.tkn2)
-
-# # Plot bigram frequency by index
-# plot(x = 1:nrow(my.bigram), y = my.bigram$frequency,
-#      xlab = "Bigram Index (sorted)", ylab = "Bigram Frequency [count]")
-#rm(my.bigram)
-
-# # Display the top ten bigrams and frequencies
-# my.bigram %>%
-#   select(feature:docfreq) %>%
-#   filter(rank < 11) %>%
-#   print()
-
-# # Convert the 1-gram tokens to 3-gram tokens
-# my.tkn3 <- tokens_ngrams(my.tkn1, n = 3)
-# #rm(my.tkn1)
-# 
-# # Build dfm of trigrams and convert to dataframe
-# my.trigram <- my.tkn3 %>%
-#   dfm(verbose = FALSE) %>%
-#   textstat_frequency()
-# #rm(my.tkn3)
-
-# # Plot trigram frequency by index
-# plot(x = 1:nrow(my.trigram), y = my.trigram$frequency,
-#      xlab = "Trigram Index (sorted)", ylab = "Trigram Frequency [count]")
-#rm(my.trigram)
-
-# # Display the top ten trigrams and frequencies
-# my.trigram %>%
-#   select(feature:docfreq) %>%
-#   filter(rank < 11) %>%
-#   print()
+# Display the top ten trigrams and frequencies
+trigram %>%
+  select(feature:docfreq) %>%
+  slice(1:10) %>%
+  print()
+rm(trigram)
 
 
 
