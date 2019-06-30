@@ -55,7 +55,7 @@ DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip") {
 }
 
 AssembleCorpus <- function(n.lines,
-                           file = c("blogs", "news", "twitter"),
+                           file.selection = c("blogs", "news", "twitter"),
                            sub.dir = c("en_US", "de_DE", "fi_FI", "ru_RU")) {
   # Reads in specified number of lines from the specified file, assembles corpus
   #
@@ -68,39 +68,66 @@ AssembleCorpus <- function(n.lines,
   #   A corpus of the text from the selected file, one "text" per line
   
   # Check and set arguments
-  file <- match.arg(file)
+  file.selection <- match.arg(file.selection)
   sub.dir <- match.arg(sub.dir)
 
   # Download and unzip the data, store folder name and file path
-  file.name <- paste(sub.dir, file, "txt", sep = ".")  # Build file name
-  file.corpus <- DLAndUnzipData() %>%  # Verify data exists
-    file.path(sub.dir, file.name) %>%  # Build file path
+  filename <- paste(sub.dir, file.selection, "txt", sep = ".")  # Build file name
+  filepath <- file.path(DLAndUnzipData(), sub.dir, filename)  # Build file path
+  file.corpus <- filepath %>%
     readLines(n = n.lines) %>%  # Read in text
     corpus()  # Convert to corpus
   
+  # Set metadata for the corpus
+  docnames(file.corpus) <- paste0(file.selection, 1:ndoc(file.corpus))
+  file.corpus$metadata$source <- filename
+  file.corpus$metadata$file.size <- file.info(filepath)$size
+  file.corpus$metadata$rows.read <- nrow(file.corpus$documents)
+  
+  # Return the corpus
   return(file.corpus)
 }
 
 
 # Part 1) Load and process the data---------------------------------------------
 
-# Read in text data and assemble into corpus
-my.corp <- AssembleCorpus(n.lines = 3, file = "news")
+chunk.size <- 3
+
+# Read in text data and assemble into corpora
+blogs.corp <- AssembleCorpus(n.lines = chunk.size, file = "blogs")
+news.corp <- AssembleCorpus(n.lines = chunk.size, file = "news")
+twitter.corp <- AssembleCorpus(n.lines = chunk.size, file = "twitter")
 
 # Tokenize and clean text
 # The predictive model will not attempt to predict: numbers, punctuation,
 # symbols, twitter handles, hyphens, or urls, so these are all removed
-my.tkn1 <- tokens(my.corp, what = "word", remove_numbers = TRUE,
-                 remove_punct = TRUE, remove_symbols = TRUE,
-                 remove_twitter = TRUE, remove_hyphens = TRUE,
-                 remove_url = TRUE, ngrams = 1, verbose = FALSE)
-print(my.tkn1)
-# #rm(my.corp)
-# 
+blogs.tkn <- tokens(blogs.corp, remove_numbers = T, remove_punct = T,
+                    remove_symbols = T, remove_twitter = T, remove_hyphens = T,
+                    remove_url = T)
+news.tkn <- tokens(news.corp, remove_numbers = T, remove_punct = T,
+                    remove_symbols = T, remove_twitter = T, remove_hyphens = T,
+                    remove_url = T)
+twitter.tkn <- tokens(twitter.corp, remove_numbers = T, remove_punct = T,
+                    remove_symbols = T, remove_twitter = T, remove_hyphens = T,
+                    remove_url = T)
+
+# Count the number of words in each token object
+blogs.wc <- blogs.tkn %>%
+  dfm() %>%
+  textstat_frequency() %>%
+  select(frequency) %>%
+  sum()
+
 # # Build dfm of unigrams and convert to dataframe
 # my.unigram <- my.tkn1 %>%
 #   dfm() %>%
 #   textstat_frequency()
+
+
+
+
+
+
 
 # # Plot unigram frequency by index
 # plot(x = 1:nrow(my.unigram), y = my.unigram$frequency,
