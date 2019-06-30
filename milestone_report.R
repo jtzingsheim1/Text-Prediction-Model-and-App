@@ -1,20 +1,24 @@
-# Coursera Data Science Specialization Capstone Project Script------------------
-# Predicting the next word in a sequence
+# Coursera Data Science Specialization Capstone Project 1 Script----------------
+# Milestone report for predictive text project
 
 
 # The purpose of this script is to complete the basic requirements behind the
-# capstone project from Johns Hopkins University within the Data Science
+# first capstone project from Johns Hopkins University within the Data Science
 # Specialization on Coursera.
 #
-# The instructions outline the objectives of the project as:
-# - Analyze a large corpus of text documents
-# - Discover structure in the data and how words are put together
-# - Clean and analyze the text data
-# - Build a predictive text model
-# - Build a predictive text product that uses the model
+# Teh review criteria for this part of the project are:
+# - Does the link lead to an HTML page describing the exploratory analysis of
+# the training data set?
+# - Has the data scientist done basic summaries of the three files? Word counts,
+# line counts and basic data tables?
+# - Has the data scientist made basic plots, such as histograms to illustrate
+# features of the data?
+# - Was the report written in a brief, concise style, in a way that a non-data
+# scientist manager could appreciate?
 #
 # This project will begin to meet the objectives by building a script to work
-# with the data and build a predictive model
+# with the data. This script will serve as the basis for an R Markdown file
+# which will create the actual deliverable of the html report.
 
 
 library(tidyverse)
@@ -50,36 +54,38 @@ DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip") {
   return(data.folder)  # Return directory of unzipped file contents as character
 }
 
-AssembleCorpus <- function(n.lines, sub.dir = "en_US") {
-  # Reads in specified number of lines from the subdirectory, assembles corpus
+AssembleCorpus <- function(n.lines,
+                           file = c("blogs", "news", "twitter"),
+                           sub.dir = c("en_US", "de_DE", "fi_FI", "ru_RU")) {
+  # Reads in specified number of lines from the specified file, assembles corpus
   #
   # Args:
-  #   n.lines: The number of lines to read in from each text with readLines()
+  #   n.lines: The number of lines to read in from the text with readLines()
+  #   file: Select which file to read from, one of: blogs, news, or twitter
   #   sub.dir: The subdirectory to read in files from, "en_US" by default
   #
   # Returns:
-  #   A corpus combining text from all the files, one text per line from file
+  #   A corpus of the text from the selected file, one "text" per line
+  
+  # Check and set arguments
+  file <- match.arg(file)
+  sub.dir <- match.arg(sub.dir)
 
-  # Download and unzip the data, store folder name and file paths
-  data.folder <- file.path(DLAndUnzipData(), sub.dir)
-  file.names <- list.files(data.folder)  # Collect files names
-  file.paths <- file.path(data.folder, file.names)  # Append file names to path
+  # Download and unzip the data, store folder name and file path
+  file.name <- paste(sub.dir, file, "txt", sep = ".")  # Build file name
+  file.corpus <- DLAndUnzipData() %>%  # Verify data exists
+    file.path(sub.dir, file.name) %>%  # Build file path
+    readLines(n = n.lines) %>%  # Read in text
+    corpus()  # Convert to corpus
   
-  # Read in the data and combine into a single corpus
-  text.list <- map(file.paths, readLines, n = n.lines)
-  blogs.corp <- corpus(text.list[[1]])
-  news.corp <- corpus(text.list[[2]])
-  twitter.corp <- corpus(text.list[[3]])
-  full.corpus <- blogs.corp + news.corp + twitter.corp
-  
-  return(full.corpus)
+  return(file.corpus)
 }
 
 
 # Part 1) Load and process the data---------------------------------------------
 
 # Read in text data and assemble into corpus
-my.corp <- AssembleCorpus(n.lines = 1000)
+my.corp <- AssembleCorpus(n.lines = 3, file = "news")
 
 # Tokenize and clean text
 # The predictive model will not attempt to predict: numbers, punctuation,
@@ -88,6 +94,7 @@ my.tkn1 <- tokens(my.corp, what = "word", remove_numbers = TRUE,
                  remove_punct = TRUE, remove_symbols = TRUE,
                  remove_twitter = TRUE, remove_hyphens = TRUE,
                  remove_url = TRUE, ngrams = 1, verbose = FALSE)
+print(my.tkn1)
 # #rm(my.corp)
 # 
 # # Build dfm of unigrams and convert to dataframe
@@ -166,25 +173,6 @@ my.tkn1 <- tokens(my.corp, what = "word", remove_numbers = TRUE,
 
 
 
-
-
-
-
-
-
-
-
-
-
-# Review criteria:
-# - Does the link lead to an HTML page describing the exploratory analysis of
-# the training data set?
-# - Has the data scientist done basic summaries of the three files? Word counts,
-# line counts and basic data tables?
-# - Has the data scientist made basic plots, such as histograms to illustrate
-# features of the data?
-# - Was the report written in a brief, concise style, in a way that a non-data
-# scientist manager could appreciate?
 
 
 
