@@ -24,19 +24,20 @@ library(quanteda)
 
 # Part 0) Function definitions--------------------------------------------------
 
-DLAndUnzipData <- function() {
+DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip") {
   # Downloads and unzips the capstone dataset if needed, returns folder name
   #
   # Args:
-  #   None
+  #   data.filename: An optional name for the zip file, to replace the default
   #
   # Returns:
-  #   The name of the folder containing the data in the current directory
-  data.filename <- "Coursera-SwiftKey.zip"
+  #   A chacacter value of the name of the folder containing the data
+
   # Check if the file already exists, download if it does not
   if (!file.exists(data.filename)) {
     print("Downloading Data File")
-    url <- "https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip"
+    url <- paste0("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/",
+                  "Coursera-SwiftKey.zip")
     download.file(url, data.filename)
   }
   
@@ -46,40 +47,58 @@ DLAndUnzipData <- function() {
     print("Unzipping Data File")
     unzip(data.filename)
   }
-  data.folder
+  return(data.folder)  # Return directory of unzipped file contents as character
+}
+
+AssembleCorpus <- function(n.lines, sub.dir = "en_US") {
+  # Reads in specified number of lines from the subdirectory, assembles corpus
+  #
+  # Args:
+  #   n.lines: The number of lines to read in from each text with readLines()
+  #   sub.dir: The subdirectory to read in files from, "en_US" by default
+  #
+  # Returns:
+  #   A corpus combining text from all the files, one text per line from file
+
+  # Download and unzip the data, store folder name and file paths
+  data.folder <- file.path(DLAndUnzipData(), sub.dir)
+  file.names <- list.files(data.folder)  # Collect files names
+  file.paths <- file.path(data.folder, file.names)  # Append file names to path
+  
+  # Read in the data and combine into a single corpus
+  text.list <- map(file.paths, readLines, n = n.lines)
+  corp.list <- map(text.list, corpus)
+  full.corpus <- corp.list[[1]] + corp.list[[2]] + corp.list[[3]]
+  
+  return(full.corpus)
 }
 
 
 # Part 1) Load and process the data---------------------------------------------
 
-# Download and unzip the data, store folder name as object
-data.folder <- DLAndUnzipData()
-chunk.size <- 5000  # Twitter file is about 2.4 million lines
-
-# # Profile 1
-# prof1 <- system.time(data.folder %>%
+# # Download and unzip the data, store folder name as object
+# data.folder <- DLAndUnzipData()
+# chunk.size <- 5000  # Twitter file is about 2.4 million lines
+# 
+# # Create a small subset of text to experiment with
+# my.text <- data.folder %>%
 #   file.path("en_US", "en_US.twitter.txt") %>%  # Append subfolder and filename
-#   readLines(n = chunk.size))
+#   readLines(n = chunk.size)
+# rm(DLAndUnzipData, data.folder, chunk.size)
 
-# Create a small subset of text to experiment with
-my.text <- data.folder %>%
-  file.path("en_US", "en_US.twitter.txt") %>%  # Append subfolder and filename
-  readLines(n = chunk.size)
+# # Turn text into corpus
+# my.corp <- corpus(my.text)
+# #rm(my.text)
 
-rm(DLAndUnzipData, data.folder, chunk.size)
-
-# # Profile 2
-# prof2 <- system.time(corpus(my.text))
-
-# Turn text into corpus
-my.corp <- corpus(my.text)
-#rm(my.text)
+my.corp <- AssembleCorpus(n.lines = 3)
 
 # Tokenize and clean text
+# The predictive model will not attempt to predict: numbers, punctuation,
+# symbols, twitter handles, hyphens, or urls, so these are all removed
 my.tkn1 <- tokens(my.corp, what = "word", remove_numbers = TRUE,
                  remove_punct = TRUE, remove_symbols = TRUE,
                  remove_twitter = TRUE, remove_hyphens = TRUE,
-                 remove_url = TRUE, ngrams = 1, verbose = F)
+                 remove_url = TRUE, ngrams = 1, verbose = FALSE)
 #rm(my.corp)
 
 # Build dfm of unigrams and convert to dataframe
@@ -87,119 +106,83 @@ my.unigram <- my.tkn1 %>%
   dfm() %>%
   textstat_frequency()
 
-# Plot unigram frequency by index
-plot(x = 1:nrow(my.unigram), y = my.unigram$frequency,
-     xlab = "Word Index (sorted)", ylab = "Word Frequency [count]")
+# # Plot unigram frequency by index
+# plot(x = 1:nrow(my.unigram), y = my.unigram$frequency,
+#      xlab = "Word Index (sorted)", ylab = "Word Frequency [count]")
+# 
+# # Display the top ten unigrams and frequencies
+# my.unigram %>%
+#   select(feature:docfreq) %>%
+#   filter(rank < 11) %>%
+#   print()
 
-# Display the top ten unigrams and frequencies
-my.unigram %>%
-  select(feature:docfreq) %>%
-  filter(rank < 11) %>%
-  print()
+# # Check how many words are needed to cover 50 and 90 percent of occurances
+# occurances <- sum(my.unigram$frequency)  # Total count of word occurances
+# # Create a table that inclues the cumulative frequencies and fraction
+# frequencies <- my.unigram %>%
+#   mutate(cum.freq = cumsum(frequency), cum.frac = cum.freq / occurances) %>%
+#   select(cum.frac)
+# words.5 <- frequencies %>%
+#   filter(cum.frac <= 0.5) %>%
+#   nrow()
+# words.9 <- frequencies %>%
+#   filter(cum.frac <= 0.9) %>%
+#   nrow()
+# # Plot cumulative occurance fraction by word index
+# plot(x = 1:nrow(frequencies), y = frequencies$cum.frac,
+#      xlab = "Word Index (sorted)", ylab = "Cumulative Occurance Fraction")
+# rm(occurances, frequencies)
+# #rm(my.unigram)
 
-# Check how many words are needed to cover 50 and 90 percent of occurances
-occurances <- sum(my.unigram$frequency)  # Total count of word occurances
-# Create a table that inclues the cumulative frequencies and fraction
-frequencies <- my.unigram %>%
-  mutate(cum.freq = cumsum(frequency), cum.frac = cum.freq / occurances) %>%
-  select(cum.frac)
-words.5 <- frequencies %>%
-  filter(cum.frac <= 0.5) %>%
-  nrow()
-words.9 <- frequencies %>%
-  filter(cum.frac <= 0.9) %>%
-  nrow()
-# Plot cumulative occurance fraction by word index
-plot(x = 1:nrow(frequencies), y = frequencies$cum.frac,
-     xlab = "Word Index (sorted)", ylab = "Cumulative Occurance Fraction")
-rm(occurances, frequencies)
-
-
-
-#rm(my.unigram)
-
-# Convert the 1-gram tokens to 2-gram tokens
-my.tkn2 <- tokens_ngrams(my.tkn1, n = 2)
-
-# Build dfm of bigrams and convert to dataframe
-my.bigram <- my.tkn2 %>%
-  dfm() %>%
-  textstat_frequency()
-#rm(my.tkn2)
+# # Convert the 1-gram tokens to 2-gram tokens
+# my.tkn2 <- tokens_ngrams(my.tkn1, n = 2)
+# 
+# # Build dfm of bigrams and convert to dataframe
+# my.bigram <- my.tkn2 %>%
+#   dfm() %>%
+#   textstat_frequency()
+# #rm(my.tkn2)
 
 # # Plot bigram frequency by index
 # plot(x = 1:nrow(my.bigram), y = my.bigram$frequency,
 #      xlab = "Bigram Index (sorted)", ylab = "Bigram Frequency [count]")
 #rm(my.bigram)
 
-# Display the top ten bigrams and frequencies
-my.bigram %>%
-  select(feature:docfreq) %>%
-  filter(rank < 11) %>%
-  print()
+# # Display the top ten bigrams and frequencies
+# my.bigram %>%
+#   select(feature:docfreq) %>%
+#   filter(rank < 11) %>%
+#   print()
 
-# Convert the 1-gram tokens to 3-gram tokens
-my.tkn3 <- tokens_ngrams(my.tkn1, n = 3)
-#rm(my.tkn1)
-
-# Build dfm of trigrams and convert to dataframe
-my.trigram <- my.tkn3 %>%
-  dfm(verbose = F) %>%
-  textstat_frequency()
-#rm(my.tkn3)
+# # Convert the 1-gram tokens to 3-gram tokens
+# my.tkn3 <- tokens_ngrams(my.tkn1, n = 3)
+# #rm(my.tkn1)
+# 
+# # Build dfm of trigrams and convert to dataframe
+# my.trigram <- my.tkn3 %>%
+#   dfm(verbose = FALSE) %>%
+#   textstat_frequency()
+# #rm(my.tkn3)
 
 # # Plot trigram frequency by index
 # plot(x = 1:nrow(my.trigram), y = my.trigram$frequency,
 #      xlab = "Trigram Index (sorted)", ylab = "Trigram Frequency [count]")
 #rm(my.trigram)
 
-# Display the top ten trigrams and frequencies
-my.trigram %>%
-  select(feature:docfreq) %>%
-  filter(rank < 11) %>%
-  print()
-
-
-
-# my.tkn2x <- tokens(my.text, what = "word", remove_numbers = TRUE,
-#                   remove_punct = TRUE, remove_symbols = TRUE,
-#                   remove_twitter = TRUE, remove_hyphens = TRUE,
-#                   remove_url = TRUE, ngrams = 2, verbose = TRUE)
-
-# my.tkn12 <- tokens(my.text, what = "word", remove_numbers = TRUE,
-#                   remove_punct = TRUE, remove_symbols = TRUE,
-#                   remove_twitter = TRUE, remove_hyphens = TRUE,
-#                   remove_url = TRUE, ngrams = 1:2, verbose = TRUE)
-
-# # Profile 4
-# prof4 <- system.time(dfm(my.tkn))
-# Total time was about 1.86s for 30k chunk @ word
+# # Display the top ten trigrams and frequencies
+# my.trigram %>%
+#   select(feature:docfreq) %>%
+#   filter(rank < 11) %>%
+#   print()
 
 
 
 
 
-# my.data12 <- my.tkn12 %>%
-#   #tokens_remove(pattern = "*_*") %>%
-#   dfm(remove = "*_*", verbose = TRUE) %>%
-#   textstat_frequency()
-# 
-# my.data21 <- my.tkn12 %>%
-#   #tokens_keep(pattern = "*_*") %>%
-#   dfm(select = "*_*", verbose = TRUE) %>%
-#   textstat_frequency()
-# 
-# my.datax <- my.tkn12 %>%
-#   dfm(verbose = TRUE) %>%
-#   textstat_frequency()
-
-# print(head(my.data))
-# print(tail(my.data))
 
 
 
-# # Build bigram
-# my.bigram <- tokens_ngrams(my.tkn, n = 2)
+
 
 
 
