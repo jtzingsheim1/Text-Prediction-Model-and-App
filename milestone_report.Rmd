@@ -1,5 +1,5 @@
 ---
-title: "Word Prediction Project Milestone Report"
+title: "Word Prediction Project - Milestone Report"
 author: "Justin Z"
 date: "June 30, 2019"
 output: html_document
@@ -133,7 +133,7 @@ for this project.
 ## Introduction
 
 A core part of the broader project is to create a predictive text model, and an
-effective model should have large and diverse sample dataset to train on. The
+effective model should have a large and diverse sample dataset to train on. The
 course provides a large dataset which was obtained with a web crawler, and the
 sources include: blogs, news articles, and Twitter. Data were collected in four
 languages, but this project will only focus on English data. The table below
@@ -190,8 +190,8 @@ kable(summary.table, col.names = column.names) %>%
 ```
 
 The table shows that the combined file size is over 500 Mb, so care must be
-taken since this data could strain the memory and processing resources of the
-machine. The word count listed in the table is after some light pre-processing
+taken since this data could strain the memory and processing resources of a
+computer. The word count listed in the table is after some light pre-processing
 which removed some elements like numbers, urls, and twitter handles. Elements
 like these can be removed since the predictive model will not attempt to predict
 these types of features.
@@ -209,13 +209,13 @@ include_graphics("NLP_Workflow.png")
 
 ```
 
-For this project the texts were each loaded in line by line and then processed
-into corpus objects. These were then tokenized, where each line was split into
-individual words. During tokenization some elements were removed as described
-above. The token objects were then combined into a single object representing
-all of the texts, and this combined token object was the foundation of the rest
-of the exploration process. This report will start with non-positional analysis
-and then move on to positional analysis.
+This project has used a similar workflow - texts were each loaded in line by
+line and then processed into corpus objects. These were then tokenized, where
+each line was split into individual words. During tokenization some elements
+were removed as described above. The token objects were then combined into a
+single object representing all of the texts, and this combined token object was
+the foundation of the rest of the exploration process. This report starts with
+non-positional analysis and then moves on to positional analysis.
 
 
 ## Non-Positional Analyis (Unigrams)
@@ -253,7 +253,7 @@ example, one can see that the texts contained `r unique.words / 1000000` million
 unique words with `r occurances / 1000000` million total occurances of words
 (the word count). If the list of unique words is sorted by decreasing frequency,
 one can see how the frequencies and cumulative occurance fraction change along
-the word index as shown in the plot below.
+the word index as shown in the plots below.
 
 ```{r unigrams.2, echo = FALSE, cache = TRUE, fig.align = "center"}
 
@@ -279,16 +279,58 @@ cumulative.table <- data.frame("Fraction" = fractions,
 kable(cumulative.table, col.names = c("Coverage Fraction", "Words Needed")) %>%
   kable_styling(full_width = FALSE)
 
+```
 
+The plot above on the left shows that a very small number of words occur very
+frequently, and then there is a long tail of words that occur rarely. This sharp
+inverse relationship is [common in NLP][3]. Similarily the plot on the right
+shows how the total fraction of occurances quickly spikes and then slowly
+increases as more words are included. The table above summarizes this plot by
+showing how many words are needed to cover certain fractions of occurances. It
+is worth taking a closer look at these most common words in the table below.
+
+[3]: xxxxx "Wikipedia for _____ effect"
+
+```{r unigrams.3, echo = FALSE, cache = TRUE, fig.align = "center"}
+
+# Prepare better variable names for the table
+unigram.labels <- c("Word", "Frequency", "Rank", "Document Frequency")
 # Display the top ten unigrams and frequencies
-# unigram %>%
-#   select(feature:docfreq) %>%
-#   slice(1:10) %>%
-#   print()
+unigram %>%
+  select(feature:docfreq) %>%
+  slice(1:10) %>%
+  kable(col.names = unigram.labels) %>%
+  kable_styling(full_width = FALSE)
 
-# rm(occurances, frequencies, unigram)
+rm(cumulative.table, unigram, unigram.labels, fractions, occurances,
+   unique.words, words.needed, FindWordsNeeded)
 
 ```
+
+The word list above is not surprising, and it is a good sign that the source
+text is representative of typical English and that the processing method
+functioned well. While this section only considered individual words and their
+frequencies, the next section on positional analysis will consider how words
+appear together.
+
+
+## Positional Analyis (Bigrams and Trigrams)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
