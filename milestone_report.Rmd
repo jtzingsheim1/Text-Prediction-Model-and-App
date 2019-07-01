@@ -11,6 +11,7 @@ output: html_document
 library(tidyverse)
 library(quanteda)
 library(knitr)
+library(kableExtra)
 
 DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip") {
   # Downloads and unzips the capstone dataset if needed, returns folder name
@@ -90,6 +91,20 @@ AssembleSummary <- function(corpus.object) {
   return(corpus.metadata)
 }
 
+FindWordsNeeded <- function(fraction, dataframe) {
+  # Finds number of words needed to cover the specified fraction of occurances
+  #
+  # Args:
+  #   fraction: the coverage fraction of interest
+  #   dataframe: dataframe object from dfm and modified with cumulative vars
+  #
+  # Returns:
+  #   The number of words needed to cover the specified fraction
+dataframe %>%
+    filter(cum.frac <= fraction) %>%
+    nrow()
+}
+
 ```
 
 
@@ -105,10 +120,12 @@ the basis of the predictive model. The report should include figures that show
 interesting features identified during exploratory data analysis.
 
 The data for this project were downloaded through the course website and
-pre-processed. The data were then explored for interesting features that will
-guide the remaining portions of the project. Additional information such as the
-full instructions, raw data, and initial script can be found in the
-[GitHub repo][1] for this project.
+pre-processed in RStudio. The data were then explored for interesting features
+that will guide the remaining portions of the project. The `quanteda` and
+`tidyverse` packages were used for much of the data processing. Additional
+information such as the full instructions, raw data, initial script, and the
+R Markdown file that produced this report can be found in the [GitHub repo][1]
+for this project.
 
 [1]: xxxxx "GitHub repo for project"
 
@@ -119,12 +136,8 @@ A core part of the broader project is to create a predictive text model, and an
 effective model should have large and diverse sample dataset to train on. The
 course provides a large dataset which was obtained with a web crawler, and the
 sources include: blogs, news articles, and Twitter. Data were collected in four
-languages, but this project will only focus on English data.
-
-The large size of the dataset could present challenges to both the memory and
-processing speed of the machine that works with the data or the predictive
-model. The table below summarizes the three files that were provided in the
-English language. 
+languages, but this project will only focus on English data. The table below
+summarizes the three files that were provided in the English language. 
 
 ```{r load.data, include = FALSE, cache = TRUE}
 
@@ -171,27 +184,111 @@ summary.table <- summary.table %>%
 # Print the output table
 column.names <- c("File Name", "File Size [Mb]", "Number of Lines",
                   "Number of Words")
-kable(summary.table, col.names = column.names)
+kable(summary.table, col.names = column.names) %>%
+  kable_styling(full_width = FALSE)
 
 ```
 
 The table shows that the combined file size is over 500 Mb, so care must be
-taken as these data loaded and processed. The word count listed in the table is
-after some light pre-processing which removed some elements like numbers, urls,
-and twitter handles. Elements like these can be removed since the predictive
-model will not attempt to predict these types of features.
+taken since this data could strain the memory and processing resources of the
+machine. The word count listed in the table is after some light pre-processing
+which removed some elements like numbers, urls, and twitter handles. Elements
+like these can be removed since the predictive model will not attempt to predict
+these types of features.
+
+The [quanteda tutorial site][2] has a great image (shown below) which shows how
+a typical natural language processing workflow might progress when using the
+`quanteda` package.
+
+[2]: https://tutorials.quanteda.io/ "quanteda tutorial"
+
+```{r workflow.image, echo = FALSE, out.width = "50%", fig.align = "center"}
+
+# Output the image of the workflow
+include_graphics("NLP_Workflow.png")
+
+```
+
+For this project the texts were each loaded in line by line and then processed
+into corpus objects. These were then tokenized, where each line was split into
+individual words. During tokenization some elements were removed as described
+above. The token objects were then combined into a single object representing
+all of the texts, and this combined token object was the foundation of the rest
+of the exploration process. This report will start with non-positional analysis
+and then move on to positional analysis.
 
 
+## Non-Positional Analyis (Unigrams)
+
+```{r unigrams.1, echo = FALSE, cache = TRUE}
+
+# Remove unneeded objects to free up memory
+rm(DLAndUnzipData, AssembleCorpus, AssembleSummary, chunk.size, blogs.corp,
+   news.corp, twitter.corp, summary.table, column.names)
+
+# Combine tokens into a single object
+all.tkn <- blogs.tkn + news.tkn + twitter.tkn
+rm(blogs.tkn, news.tkn, twitter.tkn)
+
+# Build dfm of unigrams and convert to dataframe
+unigram <- all.tkn %>%
+  dfm() %>%
+  textstat_frequency() %>%
+  select(-group)  # Drop the group variable
+
+# Get total quantity of unique words and word count
+unique.words <- nrow(unigram)  # Total unique words
+occurances <- sum(unigram$frequency)  # Total count of word occurances
+
+# Add cumulative frequency and fraction to the unigram data frame
+unigram <- unigram %>%
+  mutate(cum.freq = cumsum(frequency),  # Add cumulative frequency column
+         cum.frac = cum.freq / occurances)  # Add cumulative fraction column
+
+```
+
+The combined token object was then organized into a document-feature matrix, and
+in this form some interesting insights can be extracted from the data. For
+example, one can see that the texts contained `r unique.words / 1000000` million
+unique words with `r occurances / 1000000` million total occurances of words
+(the word count). If the list of unique words is sorted by decreasing frequency,
+one can see how the frequencies and cumulative occurance fraction change along
+the word index as shown in the plot below.
+
+```{r unigrams.2, echo = FALSE, cache = TRUE, fig.align = "center"}
+
+# Plot unigram frequency by index
+par(mfrow = c(1, 2))  # Setup plot space, 1 row, 2 columns
+plot(x = 1:unique.words, y = unigram$frequency,
+     xlab = "Word Index (sorted)", ylab = "Word Frequency [count]")
+
+# Plot cumulative occurance fraction by word index
+plot(x = 1:unique.words, y = unigram$cum.frac,
+     xlab = "Word Index (sorted)", ylab = "Cumulative Occurance Fraction")
+
+# Make a table for the cumulative occurance fractions and words needed
+# Create a vector of desired fractions
+fractions <- c(0.10, 0.20, 0.50, 0.90)
+# Find the number of words needed for each fraction
+words.needed <- map_int(fractions, FindWordsNeeded, dataframe = unigram)
+# Assemble into dataframe
+cumulative.table <- data.frame("Fraction" = fractions,
+                               "Words" = words.needed)
+
+# Output the table
+kable(cumulative.table, col.names = c("Coverage Fraction", "Words Needed")) %>%
+  kable_styling(full_width = FALSE)
 
 
+# Display the top ten unigrams and frequencies
+# unigram %>%
+#   select(feature:docfreq) %>%
+#   slice(1:10) %>%
+#   print()
 
+# rm(occurances, frequencies, unigram)
 
-
-
-
-
-
-
+```
 
 
 
