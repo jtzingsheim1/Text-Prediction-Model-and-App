@@ -218,7 +218,7 @@ the foundation of the rest of the exploration process. This report starts with
 non-positional analysis and then moves on to positional analysis.
 
 
-## Non-Positional Analyis (Unigrams)
+## Non-Positional Analysis (Unigrams)
 
 ```{r unigrams.1, echo = FALSE, cache = TRUE}
 
@@ -289,21 +289,21 @@ increases as more words are included. The table above summarizes this plot by
 showing how many words are needed to cover certain fractions of occurances. It
 is worth taking a closer look at these most common words in the table below.
 
-[3]: xxxxx "Wikipedia for _____ effect"
+[3]: https://en.wikipedia.org/wiki/Zipf%27s_law "Wikipedia for Zipf's law"
 
 ```{r unigrams.3, echo = FALSE, cache = TRUE, fig.align = "center"}
 
 # Prepare better variable names for the table
-unigram.labels <- c("Word", "Frequency", "Rank", "Document Frequency")
+ngram.labels <- c("Word", "Frequency", "Rank", "Document Frequency")
 # Display the top ten unigrams and frequencies
 unigram %>%
   select(feature:docfreq) %>%
   slice(1:10) %>%
-  kable(col.names = unigram.labels) %>%
+  kable(col.names = ngram.labels) %>%
   kable_styling(full_width = FALSE)
 
-rm(cumulative.table, unigram, unigram.labels, fractions, occurances,
-   unique.words, words.needed, FindWordsNeeded)
+rm(cumulative.table, unigram, fractions, occurances, unique.words, words.needed,
+   FindWordsNeeded)
 
 ```
 
@@ -314,15 +314,77 @@ frequencies, the next section on positional analysis will consider how words
 appear together.
 
 
-## Positional Analyis (Bigrams and Trigrams)
+## Positional Analysis (Bigrams and Trigrams)
 
+```{r ngrams.1, echo = FALSE, cache = TRUE, fig.align = "center"}
 
+# Convert the 1-gram tokens to 2-gram tokens
+all.tkn.bi <- tokens_ngrams(all.tkn, n = 2)
 
+# Build dfm of bigrams and convert to dataframe
+bigram <- all.tkn.bi %>%
+  dfm() %>%
+  textstat_frequency() %>%
+  select(-group)  # Drop the group variable
+rm(all.tkn.bi)
 
+# Store total number of bigrams
+bigram.count <- nrow(bigram)
 
+```
 
+In order to perform positional analysis the tokens object was processed into
+sequences of two words - also known as bigrams. There are many more permutations
+of pairs of words than there are permutations of single words. In this case
+there are `r bigram.count / 1000000` million bigrams. With a long tail of low
+frequency features, the bigrams are more skewed than the unigrams. Bigrams will
+form an important part of the predictive model since they provide insight on how
+words appear together in pairs. The table below shows the five most common
+bigrams in this dataset.
 
+```{r ngrams.2, echo = FALSE, cache = TRUE, fig.align = "center"}
 
+# Display the top ten bigrams and frequencies
+bigram %>%
+  slice(1:5) %>%
+  kable(col.names = ngram.labels) %>%
+  kable_styling(full_width = FALSE)  
+rm(bigram, bigram.count)
+
+# Convert the 1-gram tokens to 3-gram tokens
+all.tkn.tri <- tokens_ngrams(all.tkn, n = 3)
+rm(all.tkn)
+
+# Build dfm of trigrams and convert to dataframe
+trigram <- all.tkn.tri %>%
+  dfm() %>%
+  textstat_frequency() %>%
+  select(-group)  # Drop the group variable
+rm(all.tkn.tri)
+
+# Store total number of trigrams
+trigram.count <- nrow(trigram)
+
+```
+
+As with the unigrams, these bigrams are expected. Lastly, the tokens object was
+processed into sequences of three words - also known as trigrams. With
+`r trigram.count / 1000000` million trigrams it is clear there are even more
+permutations than there were of bigrams, and the tail of low frequency
+combinations is even longer. Trigrams will also contribute to the model by
+showing how sequences of three words are likely to appear, and the table below
+shows the five most common sequences.
+
+```{r ngrams.3, echo = FALSE, cache = TRUE, fig.align = "center"}
+
+# Display the top ten trigrams and frequencies
+trigram %>%
+  slice(1:5) %>%
+  kable(col.names = ngram.labels) %>%
+  kable_styling(full_width = FALSE) 
+rm(trigram, trigram.count, ngram.labels)
+
+```
 
 
 
