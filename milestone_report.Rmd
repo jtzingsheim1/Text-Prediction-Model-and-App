@@ -57,7 +57,7 @@ AssembleCorpus <- function(n.lines,
   sub.dir <- match.arg(sub.dir)
 
   # Download and unzip the data, store folder name and file path
-  filename <- paste(sub.dir, file.selection, "txt", sep = ".")  # Build file name
+  filename <- paste(sub.dir, file.selection, "txt", sep = ".")  # Make file name
   filepath <- file.path(DLAndUnzipData(), sub.dir, filename)  # Build file path
   file.corpus <- filepath %>%
     readLines(n = n.lines) %>%  # Read in text
@@ -139,10 +139,10 @@ sources include: blogs, news articles, and Twitter. Data were collected in four
 languages, but this project will only focus on English data. The table below
 summarizes the three files that were provided in the English language. 
 
-```{r load.data, include = FALSE, cache = TRUE}
+```{r load.data1, include = FALSE, cache = TRUE}
 
 # Set how many lines to read in from the text files
-chunk.size <- 1000
+chunk.size <- 30000  # A negative number reads all lines
 
 # Read in text data and assemble into 3 corpora
 blogs.corp <- AssembleCorpus(n.lines = chunk.size, file.selection = "blogs")
@@ -209,8 +209,8 @@ include_graphics("NLP_Workflow.png")
 
 ```
 
-This project has used a similar workflow - texts were each loaded in line by
-line and then processed into corpus objects. These were then tokenized, where
+This project has so far used a similar workflow - texts were each loaded in line
+by line and then processed into corpus objects. These were then tokenized, where
 each line was split into individual words. During tokenization some elements
 were removed as described above. The token objects were then combined into a
 single object representing all of the texts, and this combined token object was
@@ -249,8 +249,9 @@ unigram <- unigram %>%
 
 The combined token object was then organized into a document-feature matrix, and
 in this form some interesting insights can be extracted from the data. For
-example, one can see that the texts contained `r unique.words / 1000000` million
-unique words with `r occurances / 1000000` million total occurances of words
+example, one can see that the texts contained
+`r round(unique.words / 1000000, digits = 1)` million unique words with
+`r round(occurances / 1000000, digits = 1)` million total occurances of words
 (the word count). If the list of unique words is sorted by decreasing frequency,
 one can see how the frequencies and cumulative occurance fraction change along
 the word index as shown in the plots below.
@@ -294,7 +295,7 @@ is worth taking a closer look at these most common words in the table below.
 ```{r unigrams.3, echo = FALSE, cache = TRUE, fig.align = "center"}
 
 # Prepare better variable names for the table
-ngram.labels <- c("Word", "Frequency", "Rank", "Document Frequency")
+ngram.labels <- c("n-gram", "Frequency", "Rank", "Document Frequency")
 # Display the top ten unigrams and frequencies
 unigram %>%
   select(feature:docfreq) %>%
@@ -329,18 +330,19 @@ bigram <- all.tkn.bi %>%
 rm(all.tkn.bi)
 
 # Store total number of bigrams
-bigram.count <- nrow(bigram)
+bigram.count <- nrow(bigram) / 1000000 %>%
+  round(digits = 1)
 
 ```
 
 In order to perform positional analysis the tokens object was processed into
 sequences of two words - also known as bigrams. There are many more permutations
 of pairs of words than there are permutations of single words. In this case
-there are `r bigram.count / 1000000` million bigrams. With a long tail of low
-frequency features, the bigrams are more skewed than the unigrams. Bigrams will
-form an important part of the predictive model since they provide insight on how
-words appear together in pairs. The table below shows the five most common
-bigrams in this dataset.
+there are `r bigram.count` million bigrams. With a
+long tail of low frequency features, the bigrams are more skewed than the
+unigrams. Bigrams will form an important part of the predictive model since they
+provide insight on how words appear together in pairs. The table below shows the
+five most common bigrams in this dataset.
 
 ```{r ngrams.2, echo = FALSE, cache = TRUE, fig.align = "center"}
 
@@ -363,17 +365,18 @@ trigram <- all.tkn.tri %>%
 rm(all.tkn.tri)
 
 # Store total number of trigrams
-trigram.count <- nrow(trigram)
+trigram.count <- nrow(trigram) / 1000000 %>%
+  round(digits = 1)
 
 ```
 
 As with the unigrams, these bigrams are expected. Lastly, the tokens object was
 processed into sequences of three words - also known as trigrams. With
-`r trigram.count / 1000000` million trigrams it is clear there are even more
-permutations than there were of bigrams, and the tail of low frequency
-combinations is even longer. Trigrams will also contribute to the model by
-showing how sequences of three words are likely to appear, and the table below
-shows the five most common sequences.
+`r trigram.count` million trigrams it is clear
+there are even more permutations than there were of bigrams, and the tail of low
+frequency combinations is even longer. Trigrams will also contribute to the
+model by showing how sequences of three words are likely to appear, and the
+table below shows the five most common sequences.
 
 ```{r ngrams.3, echo = FALSE, cache = TRUE, fig.align = "center"}
 
@@ -387,16 +390,30 @@ rm(trigram, trigram.count, ngram.labels)
 ```
 
 
+## Plans for Algorithm and Application
 
+Considering the size of the corpus it will be critical to efficiently store and
+process the data. However, as large as the data set is, it still does not
+contain all possible words let alone all possible combinations of words. Clearly
+the prediction model must have a way to assign a non-zero probability to words
+and sequences that were not found in the corpus. I believe a similar concept can
+be applied to the long tails of low frequency n-grams that are found in the
+corpus. It may be possible to assign these tails non-zero probabilities without
+directly accounting for them in the model.
 
+Additional cleaning is still needed on the data, but after that I plan to use
+machine learning to train the model on a training set and evaluate it on a
+validation set. I aim to find an effective sampling method that will allow the
+model to train and predict on a smaller dataset. If the model can be built to
+produce a vector of recommended words which are sorted by the model's estimate
+of their likelihood, then the model could be evaluated both by how often it
+predicts the correct word, and by how close the correct word is to being the top
+prediction.
 
-
-
-
-
-
-
-
-
-
+Once the model is built, a `Shiny` application will be created to predict text
+using the model. For now I plan a simple text box input and an action button
+which the user can click to receive the preditions for the next word. This is
+less natural than an application that is continuously predicting text even while
+typing, but it will reduce the amount of computation required since the model
+will only make a prediction when it is instructed to do so by the action button.
 
