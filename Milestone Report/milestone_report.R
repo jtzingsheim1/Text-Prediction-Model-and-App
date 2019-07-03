@@ -38,7 +38,7 @@ DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip") {
 
   # Check if the file already exists, download if it does not
   if (!file.exists(data.filename)) {
-    print("Downloading Data File")
+    message("Downloading Data File")
     url <- paste0("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/",
                   "Coursera-SwiftKey.zip")
     download.file(url, data.filename)
@@ -47,7 +47,7 @@ DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip") {
   # Check if the file is already unzipped, unzip if needed
   data.folder <- "final"
   if (!file.exists(data.folder)) {
-    print("Unzipping Data File")
+    message("Unzipping Data File")
     unzip(data.filename)
   }
   return(data.folder)  # Return directory of unzipped file contents as character
