@@ -24,7 +24,7 @@ DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip") {
 
   # Check if the file already exists, download if it does not
   if (!file.exists(data.filename)) {
-    print("Downloading Data File")
+    message("Downloading Data File")
     url <- paste0("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/",
                   "Coursera-SwiftKey.zip")
     download.file(url, data.filename)
@@ -33,7 +33,7 @@ DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip") {
   # Check if the file is already unzipped, unzip if needed
   data.folder <- "final"
   if (!file.exists(data.folder)) {
-    print("Unzipping Data File")
+    message("Unzipping Data File")
     unzip(data.filename)
   }
   return(data.folder)  # Return directory of unzipped file contents as character
@@ -123,11 +123,11 @@ The data for this project were downloaded through the course website and
 pre-processed in RStudio. The data were then explored for interesting features
 that will guide the remaining portions of the project. The `quanteda` and
 `tidyverse` packages were used for much of the data processing. Additional
-information such as the full instructions, raw data, initial script, and the
-R Markdown file that produced this report can be found in the [GitHub repo][1]
-for this project.
+information such as the full instructions, a link to the raw data, the initial
+script, and the R Markdown file that produced this report can be found in the
+[GitHub repo][1] for this project.
 
-[1]: xxxxx "GitHub repo for project"
+[1]: https://github.com/jtzingsheim1/text-prediction-model-and-app "GitHub repo"
 
 
 ## Introduction
@@ -142,7 +142,7 @@ summarizes the three files that were provided in the English language.
 ```{r load.data1, include = FALSE, cache = TRUE}
 
 # Set how many lines to read in from the text files
-chunk.size <- 30000  # A negative number reads all lines
+chunk.size <- -1  # A negative number reads all lines
 
 # Read in text data and assemble into 3 corpora
 blogs.corp <- AssembleCorpus(n.lines = chunk.size, file.selection = "blogs")
@@ -330,15 +330,14 @@ bigram <- all.tkn.bi %>%
 rm(all.tkn.bi)
 
 # Store total number of bigrams
-bigram.count <- nrow(bigram) / 1000000 %>%
-  round(digits = 1)
+bigram.count <- nrow(bigram) / 1000000
 
 ```
 
 In order to perform positional analysis the tokens object was processed into
 sequences of two words - also known as bigrams. There are many more permutations
 of pairs of words than there are permutations of single words. In this case
-there are `r bigram.count` million bigrams. With a
+there are `r round(bigram.count, digits = 1)` million bigrams. With a
 long tail of low frequency features, the bigrams are more skewed than the
 unigrams. Bigrams will form an important part of the predictive model since they
 provide insight on how words appear together in pairs. The table below shows the
@@ -365,14 +364,13 @@ trigram <- all.tkn.tri %>%
 rm(all.tkn.tri)
 
 # Store total number of trigrams
-trigram.count <- nrow(trigram) / 1000000 %>%
-  round(digits = 1)
+trigram.count <- nrow(trigram) / 1000000
 
 ```
 
 As with the unigrams, these bigrams are expected. Lastly, the tokens object was
 processed into sequences of three words - also known as trigrams. With
-`r trigram.count` million trigrams it is clear
+`r round(trigram.count, digits = 1)` million trigrams it is clear
 there are even more permutations than there were of bigrams, and the tail of low
 frequency combinations is even longer. Trigrams will also contribute to the
 model by showing how sequences of three words are likely to appear, and the
@@ -411,9 +409,10 @@ predicts the correct word, and by how close the correct word is to being the top
 prediction.
 
 Once the model is built, a `Shiny` application will be created to predict text
-using the model. For now I plan a simple text box input and an action button
-which the user can click to receive the preditions for the next word. This is
-less natural than an application that is continuously predicting text even while
-typing, but it will reduce the amount of computation required since the model
-will only make a prediction when it is instructed to do so by the action button.
+using the model. For now I plan to have a simple text box input and an action
+button which the user can click to view the predictions for the next word. This
+is less natural than an application that is continuously predicting text as the
+user types, but it will reduce the amount of computation required since the
+model will only make a prediction when it is instructed to do so by the action
+button.
 
