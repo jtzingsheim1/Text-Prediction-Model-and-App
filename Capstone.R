@@ -92,20 +92,53 @@ AssembleCorpus <- function(n.lines,
 # Part 1) Load and process the data---------------------------------------------
 
 # Read in text data and assemble into corpus
-my.corp <- AssembleCorpus(n.lines = 1000)
+corpus.full <- AssembleCorpus(n.lines = 100)
 
 # Tokenize and clean text
 # The predictive model will not attempt to predict: numbers, punctuation,
 # symbols, twitter handles, hyphens, or urls, so these are all removed
-my.tkn1 <- tokens(my.corp, what = "word", remove_numbers = TRUE,
+tkns.1 <- tokens(corpus.full, what = "word", remove_numbers = TRUE,
                  remove_punct = TRUE, remove_symbols = TRUE,
                  remove_twitter = TRUE, remove_hyphens = TRUE,
                  remove_url = TRUE, ngrams = 1, verbose = FALSE)
-#rm(my.corp)
+# The tokens function runs faster and produces a smaller object if all n-grams
+# are created at once, but can the model be built from that?
+
+# Remove profanity from unigrams
+profanities <- readLines("profanity_list.txt")
+prof.test1 <- tkns.1 %>%
+  tokens_keep(pattern = profanities) %>%
+  dfm() %>%
+  rowSums()
+
+profanity.texts <- prof.test1[prof.test1 > 0] %>% names()
+profanity.test <- prof.test1 > 0
+
+tkns.1a <- tkns.1 %>%
+  tokens_subset(subset = profanity.test)
+
+tkns.2 <- tkns.1a %>%
+  tokens_ngrams(n = 2L)
+
+tkns.2a <- tkns.1a %>%
+  tokens_remove(pattern = profanities) %>%
+  tokens_ngrams(n = 2L)
+  
+tkns.2b <- tkns.1a %>%
+  tokens_remove(pattern = profanities, padding = TRUE) %>%
+  tokens_ngrams(n = 2L)
 
 
+# tkns.test2 <- tkns.1 %>%
+#   tokens_keep(pattern = profanities) %>%
+#   dfm() %>%
+#   textstat_frequency()
 
 
+# # Build dfm of unigrams and convert to dataframe
+# unigram <- all.tkn %>%
+#   dfm() %>%
+#   textstat_frequency()
 
 
 
