@@ -119,6 +119,8 @@ corpus1 <- c("one two three four",
              "two four",
              "three four",
              "three four")
+d2 <- 3/11
+d3 <- 0.7
 
 unigrams <- corpus1 %>%
   tokens(n = 1) %>%
@@ -128,54 +130,103 @@ unigrams <- corpus1 %>%
   mutate(n = 1)
 
 word.count <- sum(unigrams$frequency)
+word.list <- unigrams$feature
 
 unigrams <- unigrams %>%
   mutate(qml = frequency / word.count)
   
 bigrams <- corpus1 %>%
-  tokens(n = 2) %>%
+  tokens(n = 2)
+
+alphas1 <- function(unigram, bigram.tkns) {
+  pattern1 <- paste0(unigram, "_*")
+  bigram.matches <- bigram.tkns %>%
+    tokens_select(pattern = pattern1) %>%
+    as.character() %>%
+    str_remove(pattern = pattern1) %>%
+    unique()
+  
+  # Test if vector is empty, and replace with NA if TRUE
+  if (length(bigram.matches) == 0) {
+    bigram.matches <- NA
+  }
+  
+  return(bigram.matches)
+}
+
+betas1 <- function(alphas, vocabulary) {
+  na.test <- sum(is.na(alphas))
+
+  # Test if alphas is NA
+  if (na.test != 0) {
+    betas <- vocabulary
+  } else {
+    betas <- vocabulary %>%
+      tokens(n = 1) %>%
+      tokens_remove(pattern = alphas) %>%
+      as.character()
+  }
+  
+  return(betas)
+}
+
+alphas.1 <- map(unigrams$feature, alphas1, bigram.tkns = bigrams)
+betas.1 <- map(alphas.1, betas1, vocabulary = word.list)
+
+unigrams <- unigrams %>%
+  mutate(alpha.words = alphas.1) %>%
+  mutate(beta.words = betas.1)
+rm(alphas.1, betas.1)
+
+beta.qsum <- function(beta.features, unigram.table) {
+  beta.qml.sum <- unigram.table %>%
+    filter(feature %in% beta.features) %>%
+    select(qml) %>%
+    sum()
+
+  return(beta.qml.sum)
+}
+
+beta.qsums <- map(unigrams$beta.words, beta.qsum, unigram.table = unigrams)
+
+unigrams <- unigrams %>%
+  mutate(beta.q.sums = beta.qsums)
+rm(beta.qsums)
+
+alphas1a <- function(unigram, bigram.tkns, discount) {
+  pattern1 <- paste0(unigram, "_*")
+  bigram.matches <- bigram.tkns %>%
+    tokens_select(pattern = pattern1)
+  bigram.test <- bigram.matches %>%
+    as.character() %>%
+    length()
+
+  # Test if vector is empty, and replace with NA if TRUE
+  if (bigram.test == 0) {
+    alpha.sums <- NA
+  } else {
+    bigram.matches <- bigram.matches %>%
+      dfm() %>%
+      textstat_frequency() %$%
+      frequency
+
+    alpha.sums <- discount * length(bigram.matches) / sum(bigram.matches)
+  }
+
+  return(alpha.sums)
+}
+
+alpha.values <- map(unigrams$feature, alphas1a, bigram.tkns = bigrams,
+                    discount = d2)
+unigrams <- unigrams %>%
+  mutate(alpha.value = alpha.values)
+
+bigrams <- bigrams %>%
   dfm() %>%
   textstat_frequency() %>%
   select(feature, frequency) %>%
-  mutate(n = 2)
-
-unigrams <- unigrams %>%
-  mutate(alpha = )
-
-
-# # Start with trivial examples
-# # Take a corpus of the texts below:
-# text1 <- "thanks for"
-# text2 <- "one of"
-# unigrams <- tokens(c(text1, text2)) %>%
-#   dfm() %>%
-#   textstat_frequency()
-# bigrams <- tokens(c(text1, text2), ngrams = 2) %>%
-#   dfm() %>%
-#   textstat_frequency()
-# 
-# # Define a probability function
-# ProbGetter <- function(wordi, wordb, unigram, bigram, d) {
-#   # Assemble bigram to test
-#   bigram.to.test <- paste(wordb, wordi, sep = "_")
-#   # Check if bigram has been observed
-#   if (bigram.to.test %in% bigram$feature) {
-#     # Bigram has been observed find probability
-#     observations <- sum(bigram.to.test == bigram$feature)
-#     occurrances <- filter(unigram, feature == wordb)$frequency
-#     probability <- d * observations / occurrances
-#   } else {
-#     # Bigram was not observed
-#     
-#     
-#   }
-#   
-#   
-# }
-# 
-
-
-
+  mutate(n = 2) %>%
+  mutate(adj.freq = frequency - d2)
 
 
 
