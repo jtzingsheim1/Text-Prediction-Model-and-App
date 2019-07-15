@@ -20,6 +20,7 @@
 library(tidyverse)
 #library(readtext)
 library(quanteda)
+library(magrittr)
 
 
 # Part 0) Function definitions--------------------------------------------------
@@ -218,6 +219,7 @@ alphas1a <- function(unigram, bigram.tkns, discount) {
 
 alpha.values <- map(unigrams$feature, alphas1a, bigram.tkns = bigrams,
                     discount = d2)
+
 unigrams <- unigrams %>%
   mutate(alpha.value = alpha.values)
 
@@ -228,9 +230,65 @@ bigrams <- bigrams %>%
   mutate(n = 2) %>%
   mutate(adj.freq = frequency - d2)
 
+trigrams <- corpus1 %>%
+  tokens(n = 3)
 
+alphas2 <- function(bigram, trigram.tkns) {
+  pattern2 <- paste0(bigram, "_*")
+  trigram.matches <- trigram.tkns %>%
+    tokens_select(pattern = pattern2) %>%
+    as.character() %>%
+    str_remove(pattern = pattern2) %>%
+    unique()
+  
+  # Test if vector is empty, and replace with NA if TRUE
+  if (length(trigram.matches) == 0) {
+    trigram.matches <- NA
+  }
+  
+  return(trigram.matches)
+}
 
+alphas.2 <- map(bigrams$feature, alphas2, trigrams)
 
+bigrams <- bigrams %>%
+  mutate(alpha.words = alphas.2)
+rm(alphas.2)
+
+alphas2a <- function(bigram, trigram.tkns, discount) {
+  pattern2 <- paste0(bigram, "_*")
+  trigram.matches <- trigram.tkns %>%
+    tokens_select(pattern = pattern2)
+  trigram.test <- trigram.matches %>%
+    as.character() %>%
+    length()
+  
+  # Test if vector is empty, and replace with NA if TRUE
+  if (trigram.test == 0) {
+    alpha.sums <- NA
+  } else {
+    trigram.matches <- trigram.matches %>%
+      dfm() %>%
+      textstat_frequency() %$%
+      frequency
+    
+    alpha.sums <- discount * length(trigram.matches) / sum(trigram.matches)
+  }
+  
+  return(alpha.sums)
+}
+
+alpha.values2 <- map(bigrams$feature, alphas2a, trigrams, discount = d3)
+
+bigrams <- bigrams %>%
+  mutate(alpha.value = alpha.values2)
+
+trigrams <- trigrams %>%
+  dfm() %>%
+  textstat_frequency() %>%
+  select(feature, frequency) %>%
+  mutate(n = 3) %>%
+  mutate(adj.freq = frequency - d3)
 
 
 
