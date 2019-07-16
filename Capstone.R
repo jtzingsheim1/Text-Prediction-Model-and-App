@@ -120,8 +120,11 @@ corpus1 <- c("one two three four",
              "two four",
              "three four",
              "three four")
-d2 <- 3/11
+d2 <- 0.5
 d3 <- 0.7
+
+unigram.prefix <- "two"
+#bigram.prefix <- c("one", "two")
 
 unigrams <- corpus1 %>%
   tokens(n = 1) %>%
@@ -250,10 +253,12 @@ alphas2 <- function(bigram, trigram.tkns) {
 }
 
 alphas.2 <- map(bigrams$feature, alphas2, trigrams)
+betas.2 <- map(alphas.2, betas1, vocabulary = word.list)
 
 bigrams <- bigrams %>%
-  mutate(alpha.words = alphas.2)
-rm(alphas.2)
+  mutate(alpha.words = alphas.2) %>%
+  mutate(beta.words = betas.2)
+rm(alphas.2, betas.2)
 
 alphas2a <- function(bigram, trigram.tkns, discount) {
   pattern2 <- paste0(bigram, "_*")
@@ -282,6 +287,7 @@ alpha.values2 <- map(bigrams$feature, alphas2a, trigrams, discount = d3)
 
 bigrams <- bigrams %>%
   mutate(alpha.value = alpha.values2)
+rm(alpha.values, alpha.values2)
 
 trigrams <- trigrams %>%
   dfm() %>%
@@ -290,10 +296,63 @@ trigrams <- trigrams %>%
   mutate(n = 3) %>%
   mutate(adj.freq = frequency - d3)
 
+QboBigram <- function(word, preceding.word, unigram.table, bigram.table) {
+  alpha.words1 <- unigram.table %>%
+    filter(feature == preceding.word) %$%
+    alpha.words[[1]]
+
+  alpha.test <- word %in% alpha.words1
+  
+  if (alpha.test) {
+    bigram <- paste(preceding.word, word, sep = "_")
+    big.adj.freq <- bigram.table %>%
+      filter(feature == bigram) %$%
+      adj.freq
+    uni.freq <- unigram.table %>%
+      filter(feature == preceding.word) %$%
+      frequency
+    qbo.value <- big.adj.freq / uni.freq
+  } else {
+    alpha.value <- unigram.table %>%
+      filter(feature == preceding.word) %$%
+      alpha.value[[1]]
+    qml.w <- unigram.table %>%
+      filter(feature == word) %$%
+      qml
+    beta.q.sums.w <- unigram.table %>%
+      filter(feature == preceding.word) %$%
+      beta.q.sums[[1]]
+    qbo.value <- alpha.value * qml.w / beta.q.sums.w
+  }
+
+  return(qbo.value)
+  
+}
+
+uni.qbos <- map(unigrams$feature, QboBigram, preceding.word = unigram.prefix,
+                unigram.table = unigrams, bigram.table = bigrams)
+
+unigrams <- unigrams %>%
+  mutate(qbos = uni.qbos)
+
+beta.qbosum <- function(beta.features, unigram.table) {
+  beta.qbo.sum <- unigram.table %>%
+    filter(feature %in% beta.features) %$%
+    qbos %>%
+    as.numeric() %>%
+    sum()
+  
+  return(beta.qbo.sum)
+}
+
+beta.qbosums <- map(bigrams$beta.words, beta.qbosum, unigram.table = unigrams)
+
+unigrams <- unigrams %>%
+  mutate(beta.qbo.sums = beta.qbosums)
+rm(uni.qbos, beta.qbosums)
 
 
-
-
+# The last step is to build the qbo function for trigrams
 
 
 
