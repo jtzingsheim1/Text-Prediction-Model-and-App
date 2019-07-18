@@ -116,15 +116,20 @@ rm(profanities)
 
 rm(corpus.full, tkns.1)
 
-corpus1 <- c("one two three four",
-             "two four",
-             "three four",
-             "three four")
-d2 <- 3/11
-d3 <- 0.7
+corpus1 <- c("SOS buy the book EOS",
+             "SOS buy the book EOS",
+             "SOS buy the book EOS",
+             "SOS buy the book EOS",
+             "SOS sell the book EOS",
+             "SOS buy the house EOS",
+             "SOS buy the house EOS",
+             "SOS paint the house EOS")
 
-unigram.prefix <- "two"
-bigram.prefix <- c("one", "two")
+d2 <- 0.5
+d3 <- 0.5
+
+unigram.prefix <- "the"
+bigram.prefix <- c("sell", "the")
 
 unigrams <- corpus1 %>%
   tokens(n = 1) %>%
@@ -296,6 +301,7 @@ trigrams <- trigrams %>%
   mutate(n = 3) %>%
   mutate(adj.freq = frequency - d3)
 
+# This is the first step that requires knowledge of the preceding word
 QboBigram <- function(word, preceding.word, unigram.table, bigram.table) {
   alpha.words1 <- unigram.table %>%
     filter(feature == preceding.word) %$%
@@ -395,6 +401,12 @@ uni.qbos3 <- map_dbl(unigrams$feature, QboTrigram,
 
 unigrams <- unigrams %>%
   mutate(qbos3 = uni.qbos3)
+rm(uni.qbos3)
+
+unigrams %>%
+  select(feature, qbos3) %>%
+  arrange(desc(qbos3)) %>%
+  print()
 
 
 
