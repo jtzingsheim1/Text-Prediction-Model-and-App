@@ -40,11 +40,32 @@ GetBetaValues <- function(alpha.words.element, vocab.tokens, unigram.table,
   
 }
 
-# Should the vocab be fed in as tokens?
-# How long does it take to convert in either direction?
-# - In a test of 51000 tokens it took 1.27 seconds to convert a character
-# vector into tokens. Using the same tokens object it took 0.09 seconds to
-# convert it back into a character vector.
+GetAlphaValues <- function(prefix.ngram, ngram.table, n1gram.table, discount) {
+  observed.suffixes <- ngram.table %>%
+    filter(feature == prefix.ngram) %$%
+    alpha.words %>%
+    unlist()
+  
+  na.count <- sum(is.na(observed.suffixes))
+  
+  if (na.count != 0) {
+    alpha.sums <- NA_real_
+  } else {
+    # Assemble matching n1grams
+    matching.n1grams <- paste(prefix.ngram, observed.suffixes, sep = "_")
+    
+    freq.vector <- n1gram.table %>%
+      filter(feature %in% matching.n1grams) %$%
+      frequency
+    
+    alpha.sums <- discount * length(freq.vector) / sum(freq.vector)
+    
+  }
+  
+  return(alpha.sums)
+  
+}
+
 
 
 
@@ -107,28 +128,7 @@ unigrams <- unigrams %>%
   mutate(beta.q.sums = beta.qsums)
 rm(beta.qsums)
 
-alphas1a <- function(unigram, bigram.tkns, discount) {
-  pattern1 <- paste0(unigram, "_*")
-  bigram.matches <- bigram.tkns %>%
-    tokens_select(pattern = pattern1)
-  bigram.test <- bigram.matches %>%
-    as.character() %>%
-    length()
-  
-  # Test if vector is empty, and replace with NA if TRUE
-  if (bigram.test == 0) {
-    alpha.sums <- NA
-  } else {
-    bigram.matches <- bigram.matches %>%
-      dfm() %>%
-      textstat_frequency() %$%
-      frequency
-    
-    alpha.sums <- discount * length(bigram.matches) / sum(bigram.matches)
-  }
-  
-  return(alpha.sums)
-}
+
 
 alpha.values <- map_dbl(unigrams$feature, alphas1a, bigram.tkns = bigrams,
                         discount = d2)
@@ -150,30 +150,7 @@ bigrams <- bigrams %>%
   mutate(beta.words = betas.2)
 rm(alphas.2, betas.2)
 
-alphas2a <- function(bigram, trigram.tkns, discount) {
-  pattern2 <- paste0(bigram, "_*")
-  trigram.matches <- trigram.tkns %>%
-    tokens_select(pattern = pattern2)
-  trigram.test <- trigram.matches %>%
-    as.character() %>%
-    length()
-  
-  # Test if vector is empty, and replace with NA if TRUE
-  if (trigram.test == 0) {
-    alpha.sums <- NA
-  } else {
-    trigram.matches <- trigram.matches %>%
-      dfm() %>%
-      textstat_frequency() %$%
-      frequency
-    
-    alpha.sums <- discount * length(trigram.matches) / sum(trigram.matches)
-  }
-  
-  return(alpha.sums)
-}
 
-alpha.values2 <- map_dbl(bigrams$feature, alphas2a, trigrams, discount = d3)
 
 bigrams <- bigrams %>%
   mutate(alpha.value = alpha.values2)
