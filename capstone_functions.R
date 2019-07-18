@@ -14,67 +14,42 @@ GetAlphaWords <- function(prefix.ngram, n1gram.vector) {
   return(observed.suffixes)
 }
 
-GetBetaValues <- function(alpha.words.element, vocab.tokens) {
-  na.test <- sum(is.na(alpha.words.element))
+GetBetaValues <- function(alpha.words.element, vocab.tokens, unigram.table,
+                          value.type = c("qml", "qbo")) {
   
-  
-  # Can grep handle a vector of input patterns?
-  # Should the vacb be fed in as tokens?
-  # How long does it take to convert in either direction?
-  
-  
+  # Match value type and check alpha words for NAs
+  value.type <- match.arg(value.type)
+  na.count <- sum(is.na(alpha.words.element))
   
   # Define the beta words
-  if (na.test != 0) {
-    beta.words <- vocabulary
+  if (na.count != 0) {
+    beta.words <- as.character(vocab.tokens)
   } else {
-    
-    beta.words <- vocab.vector %>%
-      grep('\\bthenn\\b', c(word.list, "then", "thenn", "thennn"), value = TRUE, useBytes = TRUE)
-    
-      tokens(n = 1) %>%
-      tokens_remove(pattern = alphas) %>%
+    beta.words <- vocab.tokens %>%
+      tokens_remove(pattern = alpha.words.element) %>%
       as.character()
   }
   
-  
-  
-  
-}
-
-betas1 <- function(alphas, vocabulary) {
-  na.test <- sum(is.na(alphas))
-  
-  # Test if alphas is NA
-  if (na.test != 0) {
-    betas <- vocabulary
-  } else {
-    betas <- vocabulary %>%
-      tokens(n = 1) %>%
-      tokens_remove(pattern = alphas) %>%
-      as.character()
-  }
-  
-  return(betas)
-}
-
-beta.qsum <- function(beta.features, unigram.table) {
-  beta.qml.sum <- unigram.table %>%
-    filter(feature %in% beta.features) %$%
-    qml %>%
+  # Extract and sum the desired values
+  betas.sum <- unigram.table %>%
+    filter(feature %in% beta.words) %>%
+    .[[value.type]] %>%
     sum()
   
-  return(beta.qml.sum)
+  return(betas.sum)
+  
 }
 
-beta.qbosum <- function(beta.features, unigram.table) {
-  beta.qbo.sum <- unigram.table %>%
-    filter(feature %in% beta.features) %$%
-    qbos %>%
-    sum()
-  
-  return(beta.qbo.sum)
-}
+# Should the vocab be fed in as tokens?
+# How long does it take to convert in either direction?
+# - In a test of 51000 tokens it took 1.27 seconds to convert a character
+# vector into tokens. Using the same tokens object it took 0.09 seconds to
+# convert it back into a character vector.
+
+
+
+
+
 
 
 
