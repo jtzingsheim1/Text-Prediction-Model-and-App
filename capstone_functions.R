@@ -155,24 +155,28 @@ GetAlphaValues <- function(prefix.ngram, ngram.table, n1gram.table, discount) {
   
 }
 
-
-
-
-# alpha.vals1 <- map_dbl(unigrams$feature, GetAlphaValues, ngram.table = unigrams,
-#                        n1gram.table = bigrams, discount = d2)
-
-
-
-
-
-
-
-
-
-
-
-
-
+ApplyAlphaValues <- function(ngram.table, discount.bis, discount.tris) {
+  
+  unigrams <- filter(ngram.table, n == 1)
+  bigrams <- filter(ngram.table, n == 2)
+  trigrams <- filter(ngram.table, n == 3)
+  
+  uni.alpha.vals <- map_dbl(unigrams$feature, GetAlphaValues,
+                            ngram.table = unigrams, n1gram.table = bigrams,
+                            discount = discount.bis)
+  bi.alpha.vals <- map_dbl(bigrams$feature, GetAlphaValues,
+                           ngram.table = bigrams, n1gram.table = trigrams,
+                           discount = discount.tris)
+  
+  unigrams <- mutate(unigrams, alpha.value = uni.alpha.vals)
+  bigrams <- mutate(bigrams, alpha.value = bi.alpha.vals)
+  trigrams <- mutate(trigrams, alpha.value = NA_real_)
+  
+  ngram.table <- bind_rows(unigrams, bigrams, trigrams)
+  
+  return(ngram.table)  
+  
+}
 
 
 
@@ -209,7 +213,8 @@ ngrams <- corpus1 %>%
   ApplyWCAttribute() %>%
   ApplyQMLs() %>%
   ApplyAdjFreq(discount.bis = d2, discount.tris = d3) %>%
-  ApplyAlphaWords(discount.bis = d2, discount.tris = d3)
+  ApplyAlphaWords(discount.bis = d2, discount.tris = d3) %>%
+  ApplyAlphaValues(discount.bis = d2, discount.tris = d3)
 
 
 ### Will need to find a way to remove profanity from this type of object
@@ -217,20 +222,7 @@ ngrams <- corpus1 %>%
 
 
 
-# Apply alpha values
-# alpha.vals1 <- map_dbl(unigrams$feature, GetAlphaValues, ngram.table = unigrams,
-#                        n1gram.table = bigrams, discount = d2)
-# 
-# unigrams <- unigrams %>%
-#   mutate(alpha.value = alpha.vals1)
-# 
-# alpha.vals2 <- map_dbl(bigrams$feature, GetAlphaValues, ngram.table = bigrams,
-#                        n1gram.table = trigrams, discount = d3)
-# 
-# bigrams <- bigrams %>%
-#   mutate(alpha.value = alpha.vals2)
-# 
-# rm(alphas2, alpha.vals2)
+
 
 
 
