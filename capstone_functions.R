@@ -70,7 +70,7 @@ GetAlphaWords <- function(prefix.ngram, n1gram.vector) {
 }
 
 GetBetaValues <- function(alpha.words.element, vocab.tokens, unigram.table,
-                          value.type = c("qml", "qbo")) {
+                          value.type = c("qml", "qbo.bi")) {
   
   # Match value type and check alpha words for NAs
   value.type <- match.arg(value.type)
@@ -178,6 +178,119 @@ ApplyAlphaValues <- function(ngram.table, discount.bis, discount.tris) {
   
 }
 
+GetQboBigram <- function(word, preceding.word, unigram.table, bigram.table) {
+  alpha.words.v <- unigram.table %>%
+    filter(feature == preceding.word) %$%
+    alpha.words %>%
+    unlist()
+
+  alpha.test <- word %in% alpha.words.v
+
+  if (alpha.test) {
+    bigram <- paste(preceding.word, word, sep = "_")
+    big.adj.freq <- bigram.table %>%
+      filter(feature == bigram) %$%
+      adj.freq
+    uni.freq.v <- unigram.table %>%
+      filter(feature == preceding.word) %$%
+      frequency
+    qbo.value.w <- big.adj.freq / uni.freq.v
+  } else {
+    alpha.value.v <- unigram.table %>%
+      filter(feature == preceding.word) %$%
+      alpha.value
+    qml.w <- unigram.table %>%
+      filter(feature == word) %$%
+      qml
+    qml.sum.v <- unigram.table %>%
+      filter(feature == preceding.word) %$%
+      qml.sum
+    qbo.value.w <- alpha.value.v * qml.w / qml.sum.v
+  }
+
+  return(qbo.value.w)
+
+}
+
+GetQboTrigram <- function(word, preceding.words, unigram.table, bigram.table,
+                       trigram.table) {
+  bigram.pref <- paste(preceding.words, collapse = "_")
+  alpha.words.uv <- bigram.table %>%
+    filter(feature == bigram.pref) %$%
+    alpha.words %>%
+    unlist()
+
+  alpha.test <- word %in% alpha.words.uv
+
+  if (alpha.test) {
+    trigram <- paste(bigram.pref, word, sep = "_")
+    trig.adj.freq <- trigram.table %>%
+      filter(feature == trigram) %$%
+      adj.freq
+    bi.freq.uv <- bigram.table %>%
+      filter(feature == bigram.pref) %$%
+      frequency
+    qbo.value.w <- trig.adj.freq / bi.freq.uv
+  } else {
+    alpha.value.uv <- bigram.table %>%
+      filter(feature == bigram.pref) %$%
+      alpha.value
+    qbo.w <- unigram.table %>%
+      filter(feature == word) %$%
+      qbo.bi
+    qbo.sum.uv <- bigram.table %>%
+      filter(feature == bigram.pref) %$%
+      qbo.sum
+    qbo.value.w <- alpha.value.uv * qbo.w / qbo.sum.uv
+  }
+
+  return(qbo.value.w)
+
+}
+
+# Need to update this function so it can handle variable input types for words
+ApplyQboValues <- function(ngram.table, preceding.words) {
+  
+  unigrams <- filter(ngram.table, n == 1)
+  bigrams <- filter(ngram.table, n == 2)
+  trigrams <- filter(ngram.table, n == 3)
+  
+  vocabulary.tokens <- tokens(unigrams$feature, n = 1)
+
+  uni.qbo.bis <- map_dbl(unigrams$feature, GetQboBigram,
+                      preceding.word = preceding.words[2],
+                      unigram.table = unigrams, bigram.table = bigrams)
+  
+  unigrams <- unigrams %>%
+    mutate(qbo.bi = uni.qbo.bis) %>%
+    mutate(qbo.sum = NA_real_)
+
+  bi.qbo.sums <- map_dbl(bigrams$alpha.words, GetBetaValues,
+                         vocab.tokens = vocabulary.tokens,
+                         unigram.table = unigrams, value.type = "qbo.bi")
+  
+  bigrams <- bigrams %>%
+    mutate(qbo.bi = NA_real_) %>%
+    mutate(qbo.sum = bi.qbo.sums) %>%
+    mutate(qbo.tri = NA_real_)
+  
+  uni.qbo.tris <- map_dbl(unigrams$feature, GetQboTrigram,
+                          preceding.words = preceding.words,
+                          unigram.table = unigrams, bigram.table = bigrams,
+                          trigram.table = trigrams)
+  
+  unigrams <- mutate(unigrams, qbo.tri = uni.qbo.tris)
+  
+  trigrams <- trigrams %>%
+    mutate(qbo.bi = NA_real_) %>%
+    mutate(qbo.sum = NA_real_) %>%
+    mutate(qbo.tri = NA_real_)
+  
+  ngram.table <- bind_rows(unigrams, bigrams, trigrams)
+  
+  return(ngram.table)
+  
+}
 
 
 # Script -----------------------------------------------------------------------
@@ -198,10 +311,7 @@ corpus1 <- c("SOS buy the book EOS",
 d2 <- 0.5
 d3 <- 0.5
 
-# unigram.prefix <- "the"
-# bigram.prefix <- c("sell", "the")
-
-# Build a single frequency table of 1:3 grams
+# Build a single frequency table of 1:3 grams and perform calculations
 ngrams <- corpus1 %>%
   tokens(n = 1:3) %>%
   dfm() %>%
@@ -215,10 +325,19 @@ ngrams <- corpus1 %>%
   ApplyAdjFreq(discount.bis = d2, discount.tris = d3) %>%
   ApplyAlphaWords(discount.bis = d2, discount.tris = d3) %>%
   ApplyAlphaValues(discount.bis = d2, discount.tris = d3)
-
-
 ### Will need to find a way to remove profanity from this type of object
 
+# This is the first step that requires knowledge of the preceding word(s)
+previous.words <- c("sell", "the")
+
+ngrams <- ApplyQboValues(ngrams, preceding.words = previous.words)
+
+# This is the "prediction" step
+ngrams %>%
+  filter(n == 1) %>%
+  select(feature, qbo.tri) %>%
+  arrange(desc(qbo.tri)) %>%
+  print()
 
 
 
@@ -230,165 +349,6 @@ ngrams <- corpus1 %>%
 
 
 
-# This is the first step that requires knowledge of the preceding word
-# QboBigram <- function(word, preceding.word, unigram.table, bigram.table) {
-#   alpha.words1 <- unigram.table %>%
-#     filter(feature == preceding.word) %$%
-#     alpha.words %>%
-#     unlist()
-#   
-#   alpha.test <- word %in% alpha.words1
-#   
-#   if (alpha.test) {
-#     bigram <- paste(preceding.word, word, sep = "_")
-#     big.adj.freq <- bigram.table %>%
-#       filter(feature == bigram) %$%
-#       adj.freq
-#     uni.freq <- unigram.table %>%
-#       filter(feature == preceding.word) %$%
-#       frequency
-#     qbo.value <- big.adj.freq / uni.freq
-#   } else {
-#     alpha.value <- unigram.table %>%
-#       filter(feature == preceding.word) %$%
-#       alpha.value
-#     qml.w <- unigram.table %>%
-#       filter(feature == word) %$%
-#       qml
-#     beta.q.sums.w <- unigram.table %>%
-#       filter(feature == preceding.word) %$%
-#       beta.q.sums
-#     qbo.value <- alpha.value * qml.w / beta.q.sums.w
-#   }
-#   
-#   return(qbo.value)
-#   
-# }
-# 
-# uni.qbos <- map_dbl(unigrams$feature, QboBigram,
-#                     preceding.word = unigram.prefix, unigram.table = unigrams,
-#                     bigram.table = bigrams)
-# 
-# unigrams <- unigrams %>%
-#   mutate(qbos = uni.qbos)
-# 
-# 
-# 
-# beta.qbosums <- map_dbl(bigrams$beta.words, beta.qbosum,
-#                         unigram.table = unigrams)
-# 
-# bigrams <- bigrams %>%
-#   mutate(beta.qbo.sums = beta.qbosums)
-# rm(uni.qbos, beta.qbosums)
-# 
-# QboTrigram <- function(word, preceding.words, unigram.table, bigram.table,
-#                        trigram.table) {
-#   bigram.pref <- paste(preceding.words, collapse = "_")
-#   alpha.words2 <- bigram.table %>%
-#     filter(feature == bigram.pref) %$%
-#     alpha.words %>%
-#     unlist()
-#   
-#   alpha.test <- word %in% alpha.words2
-#   
-#   if (alpha.test) {
-#     trigram <- paste(bigram.pref, word, sep = "_")
-#     trig.adj.freq <- trigram.table %>%
-#       filter(feature == trigram) %$%
-#       adj.freq
-#     bi.freq <- bigram.table %>%
-#       filter(feature == bigram.pref) %$%
-#       frequency
-#     qbo.value <- trig.adj.freq / bi.freq
-#   } else {
-#     alpha.value <- bigram.table %>%
-#       filter(feature == bigram.pref) %$%
-#       alpha.value
-#     qbo.wv <- unigram.table %>%
-#       filter(feature == word) %$%
-#       qbos
-#     beta.qbo.sums.wv <- bigram.table %>%
-#       filter(feature == bigram.pref) %$%
-#       beta.qbo.sums
-#     qbo.value <- alpha.value * qbo.wv / beta.qbo.sums.wv
-#   }
-#   
-#   return(qbo.value)
-#   
-# }
-# 
-# uni.qbos3 <- map_dbl(unigrams$feature, QboTrigram,
-#                      preceding.words = bigram.prefix, unigram.table = unigrams,
-#                      bigram.table = bigrams, trigram.table = trigrams)
-# 
-# unigrams <- unigrams %>%
-#   mutate(qbos3 = uni.qbos3)
-# rm(uni.qbos3)
-# 
-# unigrams %>%
-#   select(feature, qbos3) %>%
-#   arrange(desc(qbos3)) %>%
-#   print()
-
-
-unigrams <- corpus1 %>%
-  tokens(n = 1) %>%
-  dfm() %>%
-  textstat_frequency() %>%
-  select(feature, frequency) %>%
-  mutate(n = 1) %>%
-  ApplyWCAttribute() %>%
-  ApplyQMLs()
-
-
-# Should be called only once but still created inside a function that uses it
-vocabulary.tokens <- tokens(unigrams$feature, n = 1)
-
-# Move adjusted frequency to a function
-bigrams <- corpus1 %>%
-  tokens(n = 2) %>%
-  dfm() %>%
-  textstat_frequency() %>%
-  select(feature, frequency) %>%
-  mutate(n = 2) %>%
-  mutate(adj.freq = frequency - d2)
-
-alphas1 <- map(unigrams$feature, GetAlphaWords, n1gram.vector = bigrams$feature)
-beta.vals1 <- map_dbl(alphas1, GetBetaValues, vocab.tokens = vocabulary.tokens,
-                      unigram.table = unigrams, value.type = "qml")
-
-unigrams <- unigrams %>%
-  mutate(alpha.words = alphas1) %>%
-  mutate(qml.sum = beta.vals1)
-
-alpha.vals1 <- map_dbl(unigrams$feature, GetAlphaValues, ngram.table = unigrams,
-                       n1gram.table = bigrams, discount = d2)
-
-unigrams <- unigrams %>%
-  mutate(alpha.value = alpha.vals1)
-
-rm(alphas1, beta.vals1, alpha.vals1)
-
-trigrams <- corpus1 %>%
-  tokens(n = 3) %>%
-  dfm() %>%
-  textstat_frequency() %>%
-  select(feature, frequency) %>%
-  mutate(n = 3) %>%
-  mutate(adj.freq = frequency - d3)
-
-alphas2 <- map(bigrams$feature, GetAlphaWords, n1gram.vector = trigrams$feature)
-
-bigrams <- bigrams %>%
-  mutate(alpha.words = alphas2)
-
-alpha.vals2 <- map_dbl(bigrams$feature, GetAlphaValues, ngram.table = bigrams,
-                       n1gram.table = trigrams, discount = d3)
-
-bigrams <- bigrams %>%
-  mutate(alpha.value = alpha.vals2)
-
-rm(alphas2, alpha.vals2)
 
 
 
