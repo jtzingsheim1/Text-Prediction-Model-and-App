@@ -45,6 +45,8 @@ AssembleCorpus <- function(n.lines,
   # Returns:
   #   A corpus combining text from all the files, one text per line from file
   
+  message(Sys.time(), " assembling corpus")
+  
   # Check and set arguments
   sub.dir <- match.arg(sub.dir)
   
@@ -65,16 +67,22 @@ AssembleCorpus <- function(n.lines,
 
 TokenizeAndClean <- function(corpus) {
   
+  message(Sys.time(), " tokenizing text with n = 1")
+  
   # Build tokens object of unigrams
   tokens.object <- tokens(corpus, what = "word", remove_numbers = TRUE,
                           remove_punct = TRUE, remove_symbols = TRUE,
                           remove_twitter = TRUE, remove_hyphens = TRUE,
                           remove_url = TRUE, ngrams = 1, verbose = FALSE)
   
+  message(Sys.time(), " removing profanities")
+  
   # Remove profanity from unigrams
   profanities <- readLines("profanity_list.txt")
   tokens.object <- tokens_remove(tokens.object, pattern = profanities,
                                  padding = TRUE)
+  
+  message(Sys.time(), " retokenizing text to n = 1:3")
   
   # Convert tokens object to include bigrams and trigrams
   tokens.object <- tokens(tokens.object, n = 1:3)
@@ -86,6 +94,9 @@ TokenizeAndClean <- function(corpus) {
 }
 
 CountGrams <- function(ngram.vector) {
+  
+  message(Sys.time(), " counting grams")
+  
   ngram.n0 <- ngram.vector %>%
     str_extract_all("_") %>%
     map_int(length)
@@ -97,6 +108,9 @@ CountGrams <- function(ngram.vector) {
 }
 
 ApplyWCAttribute <- function(ngram.table) {
+  
+  message(Sys.time(), " applying word count attribute")
+  
   attr(ngram.table, "word.count") <- ngram.table %>%
     filter(n == 1) %$%
     frequency %>%
@@ -107,6 +121,9 @@ ApplyWCAttribute <- function(ngram.table) {
 }
 
 ApplyQMLs <- function(ngram.table) {
+  
+  message(Sys.time(), " calculating qmls and updating table")
+  
   word.count <- ngram.table %>%
     attributes() %$%
     word.count
@@ -124,6 +141,9 @@ ApplyQMLs <- function(ngram.table) {
 }
 
 ApplyAdjFreq <- function(ngram.table, discount.bis, discount.tris) {
+  
+  message(Sys.time(), " calculating adjusted frequencies and updating table")
+  
   unigrams <- ngram.table %>%
     filter(n == 1) %>%
     mutate(adj.freq = NA_real_)
@@ -181,6 +201,8 @@ GetBetaValues <- function(alpha.words.element, vocab.tokens, unigram.table,
 }
 
 ApplyAlphaWords <- function (ngram.table, discount.bis, discount.tris) {
+  
+  message(Sys.time(), " calculating alpha words and updating table")
   
   unigrams <- filter(ngram.table, n == 1)
   bigrams <- filter(ngram.table, n == 2)
@@ -241,6 +263,8 @@ GetAlphaValues <- function(prefix.ngram, ngram.table, n1gram.table, discount) {
 }
 
 ApplyAlphaValues <- function(ngram.table, discount.bis, discount.tris) {
+  
+  message(Sys.time(), " calculating alpha values and updating table")
   
   unigrams <- filter(ngram.table, n == 1)
   bigrams <- filter(ngram.table, n == 2)
@@ -351,7 +375,7 @@ MakePrediction <- function(ngram.table, preceding.words) {
   
   if (!v.test) {
     
-    message("preceding word not observed, predicting from qml")
+    message(Sys.time(), " preceding word not observed, predicting from qml")
     
     prediction.table <- unigrams %>%
       select(feature, qml) %>%
@@ -375,7 +399,7 @@ MakePrediction <- function(ngram.table, preceding.words) {
     
     if (!uv.test) {
       
-      message("preceding bigram not observed, predicting from qbo.bi")
+      message(Sys.time(), " preceding bigram not observed, predict from qbo.bi")
       
       prediction.table <- unigrams %>%
         select(feature, qbo.bi) %>%
@@ -383,7 +407,7 @@ MakePrediction <- function(ngram.table, preceding.words) {
       
     } else {
       
-      message("preceding bigram was observed, predicting from qbo.tri")
+      message(Sys.time(), " preceding bigram observed, predict from qbo.tri")
       
       bi.qbo.sums <- map_dbl(bigrams$alpha.words, GetBetaValues,
                              vocab.tokens = vocabulary.tokens,
@@ -404,6 +428,8 @@ MakePrediction <- function(ngram.table, preceding.words) {
     }
     
   }
+  
+  message(Sys.time(), " prediction complete")
 
   return(prediction.table)
   
