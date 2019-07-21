@@ -159,26 +159,6 @@ ApplyQMLs <- function(ngram.table) {
   
 }
 
-ApplyAdjFreq <- function(ngram.table, discount.bis, discount.tris) {
-  
-  message(Sys.time(), " calculating adjusted frequencies and updating table")
-  
-  unigrams <- ngram.table %>%
-    filter(n == 1) %>%
-    mutate(adj.freq = NA_real_)
-  bigrams <- ngram.table %>%
-    filter(n == 2) %>%
-    mutate(adj.freq = frequency - discount.bis)
-  trigrams <- ngram.table %>%
-    filter(n == 3) %>%
-    mutate(adj.freq = frequency - discount.tris)
-  
-  ngram.table <- bind_rows(unigrams, bigrams, trigrams)
-  
-  return(ngram.table)
-  
-}
-
 GetAlphaWords <- function(prefix.ngram, n1gram.vector) {
   prefix.pattern <- paste0(prefix.ngram, "_")
   observed.suffixes <- prefix.pattern %>%
@@ -191,6 +171,30 @@ GetAlphaWords <- function(prefix.ngram, n1gram.vector) {
   }
   
   return(observed.suffixes)
+}
+
+ApplyAlphaWords <- function (ngram.table) {
+
+  message(Sys.time(), " finding alpha words and updating tables")
+
+  unigrams <- filter(ngram.table, n == 1)
+  bigrams <- filter(ngram.table, n == 2)
+  trigrams <- filter(ngram.table, n == 3)
+
+  uni.alpha.words <- map(unigrams$feature, GetAlphaWords,
+                         n1gram.vector = bigrams$feature)
+  unigrams <- mutate(unigrams, alpha.words = uni.alpha.words)
+
+  bi.alpha.words <- map(bigrams$feature, GetAlphaWords,
+                        n1gram.vector = trigrams$feature)
+  bigrams <- mutate(bigrams, alpha.words = bi.alpha.words)
+
+  trigrams <- mutate(trigrams, alpha.words = list(NA_character_))
+
+  ngram.table <- bind_rows(unigrams, bigrams, trigrams)
+
+  return(ngram.table)
+
 }
 
 GetBetaValues <- function(alpha.words.element, unigram.table,
@@ -217,161 +221,43 @@ GetBetaValues <- function(alpha.words.element, unigram.table,
 
 }
 
-# GetQboSums <- function(alpha.words.element, unigram.table) {
-#   
-#   na.count <- sum(is.na(alpha.words.element))
-#   
-#   # Define the beta words
-#   if (na.count != 0) {
-#     alpha.sum <- 0
-#   } else {
-#     alpha.sum <- unigram.table %>%
-#       filter(feature %in% alpha.words) %>%
-#       
-#       tokens_remove(pattern = alpha.words.element) %>%
-#       as.character()
-#   }
-#   
-#   # Extract and sum the desired values
-#   betas.sum <- unigram.table %>%
-#     filter(feature %in% beta.words) %>%
-#     .[[value.type]] %>%
-#     sum()
-#   
-#   return(betas.sum)
-#   
-# }
-
-# GetBetaValues <- function(alpha.words.element, vocab.tokens, unigram.table,
-#                           value.type = c("qml", "qbo.bi")) {
-# 
-#   # Match value type and check alpha words for NAs
-#   value.type <- match.arg(value.type)
-#   na.count <- sum(is.na(alpha.words.element))
-# 
-#   # Define the beta words
-#   if (na.count != 0) {
-#     beta.words <- as.character(vocab.tokens)
-#   } else {
-#     beta.words <- vocab.tokens %>%
-#       tokens_remove(pattern = alpha.words.element) %>%
-#       as.character()
-#   }
-# 
-#   # Extract and sum the desired values
-#   betas.sum <- unigram.table %>%
-#     filter(feature %in% beta.words) %>%
-#     .[[value.type]] %>%
-#     sum()
-# 
-#   return(betas.sum)
-# 
-# }
-
-# ApplyAlphaWords <- function (ngram.table) {
-#   
-#   message(Sys.time(), " finding alpha words and updating tables")
-#   
-#   unigrams <- filter(ngram.table, n == 1)
-#   bigrams <- filter(ngram.table, n == 2)
-#   trigrams <- filter(ngram.table, n == 3)
-#   
-#   uni.alpha.words <- map(unigrams$feature, GetAlphaWords,
-#                          n1gram.vector = bigrams$feature)
-#   unigrams <- mutate(unigrams, alpha.words = uni.alpha.words)
-# 
-#   bi.alpha.words <- map(bigrams$feature, GetAlphaWords,
-#                         n1gram.vector = trigrams$feature)
-#   bigrams <- mutate(bigrams, alpha.words = bi.alpha.words)
-#   
-#   trigrams <- mutate(trigrams, alpha.words = list(NA_character_))
-# 
-#   ngram.table <- bind_rows(unigrams, bigrams, trigrams)
-#   
-#   return(ngram.table)
-#   
-# }
-
-# ApplySomethingElse <- function (ngram.table) {
-# 
-#   unigrams <- filter(ngram.table, n == 1)
-#   bigrams <- filter(ngram.table, n == 2)
-#   trigrams <- filter(ngram.table, n == 3)
-# 
-#   # message(Sys.time(), " finding unigram alpha words")
-#   # 
-#   # vocabulary.tokens <- tokens(unigrams$feature, n = 1)
-#   # uni.alpha.words <- map(unigrams$feature, GetAlphaWords,
-#   #                   n1gram.vector = bigrams$feature)
-#   # 
-#   # message(Sys.time(), " calculating unigram beta values")
-# 
-#   uni.beta.vals <- map_dbl(uni.alpha.words, GetBetaValues,
-#                            vocab.tokens = vocabulary.tokens,
-#                            unigram.table = unigrams, value.type = "qml")
-# 
-#   unigrams <- unigrams %>%
-#     mutate(alpha.words = uni.alpha.words) %>%
-#     mutate(qml.sum = uni.beta.vals)
-# 
-#   message(Sys.time(), " calculating bigram alpha words")
-# 
-#   bi.alpha.words <- map(bigrams$feature, GetAlphaWords,
-#                         n1gram.vector = trigrams$feature)
-# 
-#   bigrams <- bigrams %>%
-#     mutate(alpha.words = bi.alpha.words) %>%
-#     mutate(qml.sum = NA_real_)
-# 
-#   trigrams <- trigrams %>%
-#     mutate(alpha.words = list(NA_character_)) %>%
-#     mutate(qml.sum = NA_real_)
-# 
-#   ngram.table <- bind_rows(unigrams, bigrams, trigrams)
-# 
-#   return(ngram.table)
-# 
-# }
-
-ApplyAlphaWords <- function (ngram.table) {
-
-  unigrams <- filter(ngram.table, n == 1)
-  bigrams <- filter(ngram.table, n == 2)
-  trigrams <- filter(ngram.table, n == 3)
-
-  message(Sys.time(), " finding unigram alpha words")
-
-  #vocabulary.tokens <- tokens(unigrams$feature, n = 1)
-  uni.alpha.words <- map(unigrams$feature, GetAlphaWords,
-                    n1gram.vector = bigrams$feature)
-
-  message(Sys.time(), " calculating unigram beta values")
-
-  uni.beta.vals <- map_dbl(uni.alpha.words, GetBetaValues,
-                           #vocab.tokens = vocabulary.tokens,
-                           unigram.table = unigrams, value.type = "qml")
-
-  unigrams <- unigrams %>%
-    mutate(alpha.words = uni.alpha.words) %>%
-    mutate(qml.sum = uni.beta.vals)
-
-  message(Sys.time(), " calculating bigram alpha words")
-
-  bi.alpha.words <- map(bigrams$feature, GetAlphaWords,
-                        n1gram.vector = trigrams$feature)
-
-  bigrams <- bigrams %>%
-    mutate(alpha.words = bi.alpha.words) %>%
-    mutate(qml.sum = NA_real_)
-
-  trigrams <- trigrams %>%
-    mutate(alpha.words = list(NA_character_)) %>%
-    mutate(qml.sum = NA_real_)
-
-  ngram.table <- bind_rows(unigrams, bigrams, trigrams)
-
+ApplyBetaValues <- function (ngram.table) {
+  
+  message(Sys.time(), " calculating unigram beta values, and updating table")
+  
+  unigram.portion <- filter(ngram.table, n == 1)
+  other.portion <- filter(ngram.table, n != 1)
+  
+  uni.beta.vals <- map_dbl(unigram.portion$alpha.words, GetBetaValues,
+                           unigram.table = unigram.portion, value.type = "qml")
+  
+  unigram.portion <- mutate(unigram.portion, qml.sum = uni.beta.vals)
+  other.portion <- mutate(other.portion, qml.sum = NA_real_)
+  
+  ngram.table <- bind_rows(unigram.portion, other.portion)
+  
   return(ngram.table)
+  
+}
 
+ApplyAdjFreq <- function(ngram.table, discount.bis, discount.tris) {
+  
+  message(Sys.time(), " calculating adjusted frequencies and updating table")
+  
+  unigrams <- ngram.table %>%
+    filter(n == 1) %>%
+    mutate(adj.freq = NA_real_)
+  bigrams <- ngram.table %>%
+    filter(n == 2) %>%
+    mutate(adj.freq = frequency - discount.bis)
+  trigrams <- ngram.table %>%
+    filter(n == 3) %>%
+    mutate(adj.freq = frequency - discount.tris)
+  
+  ngram.table <- bind_rows(unigrams, bigrams, trigrams)
+  
+  return(ngram.table)
+  
 }
 
 GetAlphaValues <- function(prefix.ngram, ngram.table, n1gram.table, discount) {
@@ -424,6 +310,77 @@ ApplyAlphaValues <- function(ngram.table, discount.bis, discount.tris) {
   return(ngram.table)  
   
 }
+
+# GetBetaValues <- function(alpha.words.element, vocab.tokens, unigram.table,
+#                           value.type = c("qml", "qbo.bi")) {
+# 
+#   # Match value type and check alpha words for NAs
+#   value.type <- match.arg(value.type)
+#   na.count <- sum(is.na(alpha.words.element))
+# 
+#   # Define the beta words
+#   if (na.count != 0) {
+#     beta.words <- as.character(vocab.tokens)
+#   } else {
+#     beta.words <- vocab.tokens %>%
+#       tokens_remove(pattern = alpha.words.element) %>%
+#       as.character()
+#   }
+# 
+#   # Extract and sum the desired values
+#   betas.sum <- unigram.table %>%
+#     filter(feature %in% beta.words) %>%
+#     .[[value.type]] %>%
+#     sum()
+# 
+#   return(betas.sum)
+# 
+# }
+
+
+
+# ApplyAlphaWords <- function (ngram.table) {
+# 
+#   unigrams <- filter(ngram.table, n == 1)
+#   bigrams <- filter(ngram.table, n == 2)
+#   trigrams <- filter(ngram.table, n == 3)
+# 
+#   message(Sys.time(), " finding unigram alpha words")
+# 
+#   #vocabulary.tokens <- tokens(unigrams$feature, n = 1)
+#   uni.alpha.words <- map(unigrams$feature, GetAlphaWords,
+#                     n1gram.vector = bigrams$feature)
+# 
+#   message(Sys.time(), " calculating unigram beta values")
+# 
+#   uni.beta.vals <- map_dbl(uni.alpha.words, GetBetaValues,
+#                            #vocab.tokens = vocabulary.tokens,
+#                            unigram.table = unigrams, value.type = "qml")
+# 
+#   unigrams <- unigrams %>%
+#     mutate(alpha.words = uni.alpha.words) %>%
+#     mutate(qml.sum = uni.beta.vals)
+# 
+#   message(Sys.time(), " calculating bigram alpha words")
+# 
+#   bi.alpha.words <- map(bigrams$feature, GetAlphaWords,
+#                         n1gram.vector = trigrams$feature)
+# 
+#   bigrams <- bigrams %>%
+#     mutate(alpha.words = bi.alpha.words) %>%
+#     mutate(qml.sum = NA_real_)
+# 
+#   trigrams <- trigrams %>%
+#     mutate(alpha.words = list(NA_character_)) %>%
+#     mutate(qml.sum = NA_real_)
+# 
+#   ngram.table <- bind_rows(unigrams, bigrams, trigrams)
+# 
+#   return(ngram.table)
+# 
+# }
+
+
 
 GetQboBigram <- function(word, preceding.word, unigram.table, bigram.table) {
   
@@ -500,6 +457,79 @@ GetQboTrigram <- function(word, preceding.words, unigram.table, bigram.table,
 }
 
 # Need to update this function so it can handle variable input types for words
+MakePrediction <- function(ngram.table, preceding.words) {
+
+  message(Sys.time(), " making prediction")
+
+  unigrams <- filter(ngram.table, n == 1)
+  bigrams <- filter(ngram.table, n == 2)
+  trigrams <- filter(ngram.table, n == 3)
+
+  # Test if preceding word (v) has been observed
+  v.test <- preceding.words[2] %in% unigrams$feature
+
+  if (!v.test) {
+
+    message(Sys.time(), " preceding word not observed, predicting from qml")
+
+    prediction.table <- unigrams %>%
+      select(feature, qml) %>%
+      arrange(desc(qml))
+
+  } else {
+
+    # Create a tokens object from all observed unigrams
+    #vocabulary.tokens <- tokens(unigrams$feature, n = 1)
+
+    # Populate qbo values for unigrams
+    uni.qbo.bis <- map_dbl(unigrams$feature, GetQboBigram,
+                           preceding.word = preceding.words[2],
+                           unigram.table = unigrams, bigram.table = bigrams)
+
+    unigrams <- mutate(unigrams, qbo.bi = uni.qbo.bis)
+
+    # Test if preceding bigram (u, v) has been observed
+    bigram.pref <- paste(preceding.words, collapse = "_")
+    uv.test <- bigram.pref %in% bigrams$feature
+
+    if (!uv.test) {
+
+      message(Sys.time(), " preceding bigram not observed, predict from qbo.bi")
+
+      prediction.table <- unigrams %>%
+        select(feature, qml, qbo.bi) %>%
+        arrange(desc(qbo.bi))
+
+    } else {
+
+      message(Sys.time(), " preceding bigram observed, predict from qbo.tri")
+
+      bi.qbo.sums <- map_dbl(bigrams$alpha.words, GetBetaValues,
+                             #vocab.tokens = vocabulary.tokens,
+                             unigram.table = unigrams, value.type = "qbo.bi")
+
+      bigrams <- mutate(bigrams, qbo.sum = bi.qbo.sums)
+
+      uni.qbo.tris <- map_dbl(unigrams$feature, GetQboTrigram,
+                              preceding.words = preceding.words,
+                              unigram.table = unigrams, bigram.table = bigrams,
+                              trigram.table = trigrams)
+
+      prediction.table <- unigrams %>%
+        mutate(qbo.tri = uni.qbo.tris) %>%
+        select(feature, qml, qbo.bi, qbo.tri) %>%
+        arrange(desc(qbo.tri))
+
+    }
+
+  }
+
+  message(Sys.time(), " prediction complete")
+
+  return(prediction.table)
+
+}
+
 # MakePrediction <- function(ngram.table, preceding.words) {
 #   
 #   message(Sys.time(), " making prediction")
@@ -513,16 +543,12 @@ GetQboTrigram <- function(word, preceding.words, unigram.table, bigram.table,
 #   
 #   if (!v.test) {
 #     
-#     message(Sys.time(), " preceding word not observed, predicting from qml")
-#     
-#     prediction.table <- unigrams %>%
-#       select(feature, qml) %>%
-#       arrange(desc(qml))
+#     message(Sys.time(), " preceding word not observed, predict from qml")
 #     
 #   } else {
 #     
 #     # Create a tokens object from all observed unigrams
-#     vocabulary.tokens <- tokens(unigrams$feature, n = 1)
+#     #vocabulary.tokens <- tokens(unigrams$feature, n = 1)
 #     
 #     # Populate qbo values for unigrams
 #     uni.qbo.bis <- map_dbl(unigrams$feature, GetQboBigram,
@@ -530,6 +556,8 @@ GetQboTrigram <- function(word, preceding.words, unigram.table, bigram.table,
 #                            unigram.table = unigrams, bigram.table = bigrams)
 #     
 #     unigrams <- mutate(unigrams, qbo.bi = uni.qbo.bis)
+#     bigrams <- mutate(bigrams, qbo.bi = NA_real_)
+#     trigrams <- mutate(trigrams, qbo.bi = NA_real_)
 #     
 #     # Test if preceding bigram (u, v) has been observed
 #     bigram.pref <- paste(preceding.words, collapse = "_")
@@ -539,108 +567,37 @@ GetQboTrigram <- function(word, preceding.words, unigram.table, bigram.table,
 #       
 #       message(Sys.time(), " preceding bigram not observed, predict from qbo.bi")
 #       
-#       prediction.table <- unigrams %>%
-#         select(feature, qml, qbo.bi) %>%
-#         arrange(desc(qbo.bi))
-#       
 #     } else {
 #       
 #       message(Sys.time(), " preceding bigram observed, predict from qbo.tri")
 #       
 #       bi.qbo.sums <- map_dbl(bigrams$alpha.words, GetBetaValues,
-#                              vocab.tokens = vocabulary.tokens,
+#                              #vocab.tokens = vocabulary.tokens,
 #                              unigram.table = unigrams, value.type = "qbo.bi")
 #       
+#       unigrams <- mutate(unigrams, qbo.sum = NA_real_)
 #       bigrams <- mutate(bigrams, qbo.sum = bi.qbo.sums)
-# 
+#       trigrams <- mutate(trigrams, qbo.sum = NA_real_)
+#       
 #       uni.qbo.tris <- map_dbl(unigrams$feature, GetQboTrigram,
 #                               preceding.words = preceding.words,
 #                               unigram.table = unigrams, bigram.table = bigrams,
 #                               trigram.table = trigrams)
 #       
-#       prediction.table <- unigrams %>%
-#         mutate(qbo.tri = uni.qbo.tris) %>%
-#         select(feature, qml, qbo.bi, qbo.tri) %>%
-#         arrange(desc(qbo.tri))
+#       unigrams <- mutate(unigrams, qbo.tri = uni.qbo.tris)
+#       bigrams <- mutate(bigrams, qbo.tri = NA_real_)
+#       trigrams <- mutate(trigrams, qbo.tri = NA_real_)
 #       
 #     }
 #     
 #   }
 #   
+#   ngram.table <- bind_rows(unigrams, bigrams, trigrams)
+#   
 #   message(Sys.time(), " prediction complete")
-# 
-#   return(prediction.table)
+#   
+#   return(ngram.table)
 #   
 # }
-
-MakePrediction <- function(ngram.table, preceding.words) {
-  
-  message(Sys.time(), " making prediction")
-  
-  unigrams <- filter(ngram.table, n == 1)
-  bigrams <- filter(ngram.table, n == 2)
-  trigrams <- filter(ngram.table, n == 3)
-  
-  # Test if preceding word (v) has been observed
-  v.test <- preceding.words[2] %in% unigrams$feature
-  
-  if (!v.test) {
-    
-    message(Sys.time(), " preceding word not observed, predict from qml")
-    
-  } else {
-    
-    # Create a tokens object from all observed unigrams
-    #vocabulary.tokens <- tokens(unigrams$feature, n = 1)
-    
-    # Populate qbo values for unigrams
-    uni.qbo.bis <- map_dbl(unigrams$feature, GetQboBigram,
-                           preceding.word = preceding.words[2],
-                           unigram.table = unigrams, bigram.table = bigrams)
-    
-    unigrams <- mutate(unigrams, qbo.bi = uni.qbo.bis)
-    bigrams <- mutate(bigrams, qbo.bi = NA_real_)
-    trigrams <- mutate(trigrams, qbo.bi = NA_real_)
-    
-    # Test if preceding bigram (u, v) has been observed
-    bigram.pref <- paste(preceding.words, collapse = "_")
-    uv.test <- bigram.pref %in% bigrams$feature
-    
-    if (!uv.test) {
-      
-      message(Sys.time(), " preceding bigram not observed, predict from qbo.bi")
-      
-    } else {
-      
-      message(Sys.time(), " preceding bigram observed, predict from qbo.tri")
-      
-      bi.qbo.sums <- map_dbl(bigrams$alpha.words, GetBetaValues,
-                             #vocab.tokens = vocabulary.tokens,
-                             unigram.table = unigrams, value.type = "qbo.bi")
-      
-      unigrams <- mutate(unigrams, qbo.sum = NA_real_)
-      bigrams <- mutate(bigrams, qbo.sum = bi.qbo.sums)
-      trigrams <- mutate(trigrams, qbo.sum = NA_real_)
-      
-      uni.qbo.tris <- map_dbl(unigrams$feature, GetQboTrigram,
-                              preceding.words = preceding.words,
-                              unigram.table = unigrams, bigram.table = bigrams,
-                              trigram.table = trigrams)
-      
-      unigrams <- mutate(unigrams, qbo.tri = uni.qbo.tris)
-      bigrams <- mutate(bigrams, qbo.tri = NA_real_)
-      trigrams <- mutate(trigrams, qbo.tri = NA_real_)
-      
-    }
-    
-  }
-  
-  ngram.table <- bind_rows(unigrams, bigrams, trigrams)
-  
-  message(Sys.time(), " prediction complete")
-  
-  return(ngram.table)
-  
-}
 
 
