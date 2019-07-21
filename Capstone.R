@@ -29,6 +29,17 @@ source("capstone_functions.R")
 ngrams <- AssembleCorpus(n.lines = 10) %>%
   TokenizeAndClean()
 
+# my.corpus <- c("SOS buy the book EOS",
+#              "SOS buy the book EOS",
+#              "SOS buy the book EOS",
+#              "SOS buy the book EOS",
+#              "SOS sell the book EOS",
+#              "SOS buy the house EOS",
+#              "SOS buy the house EOS",
+#              "SOS paint the house EOS")
+# 
+# ngrams <- TokenizeAndClean(my.corpus)
+
 # Convert tokens object to table and perform calculations
 ngrams <- ngrams %>%
   dfm() %>%
@@ -51,20 +62,14 @@ ngrams <- ngrams %>%
   ApplyAlphaValues(discount.bis = d2, discount.tris = d3)
 
 # This is the first step that requires knowledge of the preceding word(s)
-previous.words <- c("has", "been")
-ngrams <- ApplyQboValues(ngrams, preceding.words = previous.words)
-
-# This is the "prediction" step
-ngrams %>%
-  filter(n == 1) %>%
-  select(feature, qbo.tri) %>%
-  arrange(desc(qbo.tri)) %>%
-  print()
+previous.words <- c("sell", "the")
+predictions <- MakePrediction(ngrams, preceding.words = previous.words)
+print(predictions)
 
 
-# An error is thrown if one of the preceding words is not in the vocabulary
 
-# An error is also thrown if one of the preceding bigram is unobserved
+
+
 
 
 
