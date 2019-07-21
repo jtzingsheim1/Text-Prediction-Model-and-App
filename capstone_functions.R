@@ -1,4 +1,89 @@
-# Functions --------------------------------------------------------------------
+
+DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip",
+                           profanity.filename = "profanity_list.txt") {
+  # Downloads and unzips the data if needed, returns dataset folder name
+  #
+  # Args:
+  #   data.filename: An optional name for the zip file, to replace the default
+  #
+  # Returns:
+  #   A chacacter value of the name of the folder containing the data
+  
+  # Check if the profanity file already exists, download if it does not
+  if (!file.exists(profanity.filename)) {
+    message("Downloading profanity file")
+    url <- paste0("https://raw.githubusercontent.com/RobertJGabriel/",
+                  "Google-profanity-words/master/list.txt")
+    download.file(url, profanity.filename)
+  }
+  
+  # Check if the data file already exists, download if it does not
+  if (!file.exists(data.filename)) {
+    message("Downloading data file")
+    url <- paste0("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/",
+                  "Coursera-SwiftKey.zip")
+    download.file(url, data.filename)
+  }
+  
+  # Check if the file is already unzipped, unzip if needed
+  data.folder <- "final"
+  if (!file.exists(data.folder)) {
+    message("Unzipping data file")
+    unzip(data.filename)
+  }
+  return(data.folder)  # Return directory of unzipped file contents as character
+}
+
+AssembleCorpus <- function(n.lines,
+                           sub.dir = c("en_US", "de_DE", "fi_FI", "ru_RU")) {
+  # Reads in specified number of lines from the subdirectory, assembles corpus
+  #
+  # Args:
+  #   n.lines: The number of lines to read in from each text with readLines()
+  #   sub.dir: The subdirectory to read in files from, "en_US" by default
+  #
+  # Returns:
+  #   A corpus combining text from all the files, one text per line from file
+  
+  # Check and set arguments
+  sub.dir <- match.arg(sub.dir)
+  
+  # Download and unzip the data, store folder name and file paths
+  data.folder <- file.path(DLAndUnzipData(), sub.dir)
+  file.names <- list.files(data.folder)  # Collect files names
+  file.paths <- file.path(data.folder, file.names)  # Append file names to path
+  
+  # Read in the data and combine into a single corpus
+  text.list <- map(file.paths, readLines, n = n.lines)
+  blogs.corp <- corpus(text.list[[1]])
+  news.corp <- corpus(text.list[[2]])
+  twitter.corp <- corpus(text.list[[3]])
+  full.corpus <- blogs.corp + news.corp + twitter.corp
+  
+  return(full.corpus)
+}
+
+TokenizeAndClean <- function(corpus) {
+  
+  # Build tokens object of unigrams
+  tokens.object <- tokens(corpus, what = "word", remove_numbers = TRUE,
+                          remove_punct = TRUE, remove_symbols = TRUE,
+                          remove_twitter = TRUE, remove_hyphens = TRUE,
+                          remove_url = TRUE, ngrams = 1, verbose = FALSE)
+  
+  # Remove profanity from unigrams
+  profanities <- readLines("profanity_list.txt")
+  tokens.object <- tokens_remove(tokens.object, pattern = profanities,
+                                 padding = TRUE)
+  
+  # Convert tokens object to include bigrams and trigrams
+  tokens.object <- tokens(tokens.object, n = 1:3)
+  # Testing shows that this sequence takes about the same time as tokenizing to
+  # 1:3 initially
+  
+  return(tokens.object)
+  
+}
 
 CountGrams <- function(ngram.vector) {
   ngram.n0 <- ngram.vector %>%
@@ -179,6 +264,7 @@ ApplyAlphaValues <- function(ngram.table, discount.bis, discount.tris) {
 }
 
 GetQboBigram <- function(word, preceding.word, unigram.table, bigram.table) {
+  
   alpha.words.v <- unigram.table %>%
     filter(feature == preceding.word) %$%
     alpha.words %>%
@@ -214,12 +300,13 @@ GetQboBigram <- function(word, preceding.word, unigram.table, bigram.table) {
 
 GetQboTrigram <- function(word, preceding.words, unigram.table, bigram.table,
                        trigram.table) {
+  
   bigram.pref <- paste(preceding.words, collapse = "_")
   alpha.words.uv <- bigram.table %>%
     filter(feature == bigram.pref) %$%
     alpha.words %>%
     unlist()
-
+  
   alpha.test <- word %in% alpha.words.uv
 
   if (alpha.test) {
@@ -231,6 +318,7 @@ GetQboTrigram <- function(word, preceding.words, unigram.table, bigram.table,
       filter(feature == bigram.pref) %$%
       frequency
     qbo.value.w <- trig.adj.freq / bi.freq.uv
+    
   } else {
     alpha.value.uv <- bigram.table %>%
       filter(feature == bigram.pref) %$%
@@ -242,6 +330,7 @@ GetQboTrigram <- function(word, preceding.words, unigram.table, bigram.table,
       filter(feature == bigram.pref) %$%
       qbo.sum
     qbo.value.w <- alpha.value.uv * qbo.w / qbo.sum.uv
+    
   }
 
   return(qbo.value.w)
@@ -250,6 +339,8 @@ GetQboTrigram <- function(word, preceding.words, unigram.table, bigram.table,
 
 # Need to update this function so it can handle variable input types for words
 ApplyQboValues <- function(ngram.table, preceding.words) {
+  
+  message(Sys.time(), "ApplyQboValues")
   
   unigrams <- filter(ngram.table, n == 1)
   bigrams <- filter(ngram.table, n == 2)
@@ -291,70 +382,4 @@ ApplyQboValues <- function(ngram.table, preceding.words) {
   return(ngram.table)
   
 }
-
-
-# Script -----------------------------------------------------------------------
-
-library(tidyverse)
-library(quanteda)
-library(magrittr)
-
-corpus1 <- c("SOS buy the book EOS",
-             "SOS buy the book EOS",
-             "SOS buy the book EOS",
-             "SOS buy the book EOS",
-             "SOS sell the book EOS",
-             "SOS buy the house EOS",
-             "SOS buy the house EOS",
-             "SOS paint the house EOS")
-
-d2 <- 0.5
-d3 <- 0.5
-
-# Build a single frequency table of 1:3 grams and perform calculations
-ngrams <- corpus1 %>%
-  tokens(n = 1:3) %>%
-  dfm() %>%
-  textstat_frequency() %>%
-  as_tibble() %>%
-  select(feature, frequency) %>%
-  mutate(frequency = as.integer(frequency)) %>%
-  mutate(n = CountGrams(feature)) %>%
-  ApplyWCAttribute() %>%
-  ApplyQMLs() %>%
-  ApplyAdjFreq(discount.bis = d2, discount.tris = d3) %>%
-  ApplyAlphaWords(discount.bis = d2, discount.tris = d3) %>%
-  ApplyAlphaValues(discount.bis = d2, discount.tris = d3)
-### Will need to find a way to remove profanity from this type of object
-
-# This is the first step that requires knowledge of the preceding word(s)
-previous.words <- c("sell", "the")
-
-ngrams <- ApplyQboValues(ngrams, preceding.words = previous.words)
-
-# This is the "prediction" step
-ngrams %>%
-  filter(n == 1) %>%
-  select(feature, qbo.tri) %>%
-  arrange(desc(qbo.tri)) %>%
-  print()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
