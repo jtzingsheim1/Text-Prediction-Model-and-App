@@ -26,7 +26,7 @@ source("capstone_functions.R")
 # Part 1)-----------------------------------------------------------------------
 
 # Read in text, convert to corpus, and then convert to tokens
-ngrams <- AssembleCorpus(n.lines = 10) %>%
+ngrams <- AssembleCorpus(n.lines = 1000) %>%
   TokenizeAndClean()
 
 # my.corpus <- c("SOS buy the book EOS",
@@ -48,8 +48,12 @@ ngrams <- ngrams %>%
   select(feature, frequency) %>%
   mutate(frequency = as.integer(frequency)) %>%
   mutate(n = CountGrams(feature)) %>%
+  filter(frequency > 1) %>%
+  RemoveSingletons() %>%
   ApplyWCAttribute() %>%
-  ApplyQMLs()
+  ApplyQMLs() %>%
+  ApplyAlphaWords() %>%
+  ApplyQmlSums()
 
 # Set the discount values to use
 d2 <- 0.5
@@ -58,16 +62,20 @@ d3 <- 0.5
 # This is the first step that requires discount values
 ngrams <- ngrams %>%
   ApplyAdjFreq(discount.bis = d2, discount.tris = d3) %>%
-  ApplyAlphaWords(discount.bis = d2, discount.tris = d3) %>%
+  # ApplyAlphaWords() %>%
   ApplyAlphaValues(discount.bis = d2, discount.tris = d3)
 
 # This is the first step that requires knowledge of the preceding word(s)
-previous.words <- c("sell", "the")
+previous.words <- c("a", "lot")
 predictions <- MakePrediction(ngrams, preceding.words = previous.words)
 print(predictions)
 
+sums <- c(sum(predictions$qml, na.rm = TRUE),
+          sum(predictions$qbo.bi, na.rm = TRUE),
+          sum(predictions$qbo.tri, na.rm = TRUE))
+print(sums)
 
-
+# Did not properly redistribute missing mass from the removed singletons
 
 
 
