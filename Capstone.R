@@ -20,25 +20,15 @@
 library(tidyverse)
 library(quanteda)
 library(magrittr)
+library(data.table)
 source("capstone_functions.R")
 
 
 # Part 1)-----------------------------------------------------------------------
 
 # Read in text, convert to corpus, and then convert to tokens
-ngrams <- AssembleCorpus(n.lines = 1000) %>%
-  TokenizeAndClean()
-
-# my.corpus <- c("SOS buy the book EOS",
-#              "SOS buy the book EOS",
-#              "SOS buy the book EOS",
-#              "SOS buy the book EOS",
-#              "SOS sell the book EOS",
-#              "SOS buy the house EOS",
-#              "SOS buy the house EOS",
-#              "SOS paint the house EOS")
-# 
-# ngrams <- TokenizeAndClean(my.corpus)
+ngrams <- AssembleCorpus(n.lines = 5000) %>%
+  TokenizeAndClean(n = 1:2)
 
 # Convert tokens object to table and perform calculations
 ngrams <- ngrams %>%
@@ -49,33 +39,23 @@ ngrams <- ngrams %>%
   mutate(frequency = as.integer(frequency)) %>%
   mutate(n = CountGrams(feature)) %>%
   filter(frequency > 1) %>%
-  RemoveSingletons() %>%
+  ApplyAlphaWords() %>% 
   ApplyWCAttribute() %>%
-  ApplyQMLs() %>%
-  ApplyAlphaWords() %>%
-  ApplyQmlSums()
+  ApplySbo1()
 
-# Set the discount values to use
-d2 <- 0.5
-d3 <- 0.5
+# Set the discount value to use
+alpha.value <- 0.4
 
 # This is the first step that requires discount values
-ngrams <- ngrams %>%
-  ApplyAdjFreq(discount.bis = d2, discount.tris = d3) %>%
-  # ApplyAlphaWords() %>%
-  ApplyAlphaValues(discount.bis = d2, discount.tris = d3)
-
 # This is the first step that requires knowledge of the preceding word(s)
-previous.words <- c("a", "lot")
-predictions <- MakePrediction(ngrams, preceding.words = previous.words)
+previous.words <- c("lot")
+predictions <- MakePrediction(ngrams, preceding.words = previous.words,
+                              discount = alpha.value)
 print(predictions)
 
-sums <- c(sum(predictions$qml, na.rm = TRUE),
-          sum(predictions$qbo.bi, na.rm = TRUE),
-          sum(predictions$qbo.tri, na.rm = TRUE))
-print(sums)
+predictions.table <- data.table(input.gram = filter(ngrams, n <= 4)$feature)
 
-# Did not properly redistribute missing mass from the removed singletons
+#prediction.results <- map(predictions.table$input.gram, ApplySboScores)
 
 
 
