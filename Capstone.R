@@ -48,7 +48,9 @@ alpha.value <- 0.4
 
 # This is the first step that requires discount values
 # This is the first step that requires knowledge of the preceding word(s)
-prefix.words <- c("something", "crazy")
+text.input <- "the oil"
+prefix.words <- str_split(text.input, pattern = " ") %>%
+  unlist()
 # predictions <- MakePrediction(ngrams, preceding.words = previous.words,
 #                               discount = alpha.value)
 # print(predictions)
@@ -71,7 +73,8 @@ FindWords <- function(ngram.table, prefix.words, discount, order.maximum,
                       predictions.needed) {
   
   # Create empty tables to be updated later
-  pred.table.upper <- tibble(feature = character(0), score = numeric(0))
+  pred.table.upper <- tibble(feature = character(0), word = character(0),
+                             score = numeric(0))
   pred.table.lower <- pred.table.upper
   
   # Truncate input text to maximum length supported by the model
@@ -96,13 +99,16 @@ FindWords <- function(ngram.table, prefix.words, discount, order.maximum,
     completing.grams <- GetCompletingGrams(prefix.gram = prefix.gram,
                                     n1gram.vector = n1gram.vector)
     
+    completing.words <- ExtractWords(prefix.gram = prefix.gram,
+                                     n1gram.vector = completing.grams)
+    
     pred.table.upper <- ngram.table %>%
       filter(feature %in% completing.grams) %>%
+      mutate(word = completing.words) %>%
       arrange(desc(frequency)) %>%
       ApplyScores() %>%
-      slice(n = 1:predictions.needed) %>%
-      select(feature, score) %>%
-      arrange(desc(score))
+      slice(n = 1:5) %>%
+      select(feature, word, score)
     
     number.found <- length(completing.grams)
     predictions.needed <- max(predictions.needed - number.found, 0L)
@@ -119,7 +125,9 @@ FindWords <- function(ngram.table, prefix.words, discount, order.maximum,
     
   }
   
-  prediction.table <- bind_rows(pred.table.upper, pred.table.lower)
+  prediction.table <- bind_rows(pred.table.upper, pred.table.lower) %>%
+    arrange(desc(score)) %>%
+    distinct(word, .keep_all = TRUE)
   
   return(prediction.table)
   
@@ -128,8 +136,10 @@ FindWords <- function(ngram.table, prefix.words, discount, order.maximum,
 prediction <- FindWords(ngrams, prefix.words, alpha.value, 2L, 3L)
 print(prediction)
 
-# Need to apply the alpha factoring
-# Need to chop prefix off of features
+# need to do something about duplicate words
+# is it possible for the algorithm to return less than the desired # of preds
+# Should store order in the table object
+# should retrieve the order instead of specifying it
 
 
 

@@ -169,6 +169,34 @@ ApplyScores <- function(ngram.table) {
 
 }
 
+ExtractWords <- function(prefix.gram, n1gram.vector) {
+  
+  message(Sys.time(), " extracting words from grams")
+  
+  prefix.pattern <- paste0(prefix.gram, "_")
+  
+  completing.words <- sub(prefix.pattern, "", n1gram.vector, fixed = TRUE,
+                          useBytes = TRUE)
+  
+  return(completing.words)
+  
+}
+
+# GetAlphaWords <- function(prefix.ngram, n1gram.vector) {
+#   prefix.pattern <- paste0(prefix.ngram, "_")
+#   observed.suffixes <- prefix.pattern %>%
+#     grep(n1gram.vector, value = TRUE, fixed = TRUE, useBytes = TRUE) %>%
+#     sub(prefix.pattern, "", .)
+# 
+#   # Test if vector is empty, and replace with NA if TRUE
+#   if (length(observed.suffixes) == 0) {
+#     observed.suffixes <- NA_character_
+#   }
+# 
+#   return(observed.suffixes)
+# }
+
+
 # GetSboScore <- function(word, preceding.words, alpha.words, ngram.table,
 #                         n1gram.table, discount) {
 #   
