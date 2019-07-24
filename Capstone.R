@@ -27,8 +27,8 @@ source("capstone_functions.R")
 # Part 1)-----------------------------------------------------------------------
 
 # Read in text, convert to corpus, and then convert to tokens
-ngrams <- AssembleCorpus(n.lines = 5000) %>%
-  TokenizeAndClean(n = 1:2)
+ngrams <- AssembleCorpus(n.lines = 1000) %>%
+  TokenizeAndClean(n = 1:3)
 
 # Convert tokens object to table and perform calculations
 ngrams <- ngrams %>%
@@ -37,28 +37,99 @@ ngrams <- ngrams %>%
   as_tibble() %>%
   select(feature, frequency) %>%
   mutate(frequency = as.integer(frequency)) %>%
-  mutate(n = CountGrams(feature)) %>%
-  filter(frequency > 1) %>%
-  ApplyAlphaWords() %>% 
-  ApplyWCAttribute() %>%
-  ApplySbo1()
+  mutate(n = CountGrams(feature))
+  # filter(frequency > 1) %>%
+  # ApplyAlphaWords() %>% 
+  # ApplyWCAttribute() %>%
+  # ApplySbo1()
 
 # Set the discount value to use
 alpha.value <- 0.4
 
 # This is the first step that requires discount values
 # This is the first step that requires knowledge of the preceding word(s)
-previous.words <- c("lot")
-predictions <- MakePrediction(ngrams, preceding.words = previous.words,
-                              discount = alpha.value)
-print(predictions)
+prefix.words <- c("something", "crazy")
+# predictions <- MakePrediction(ngrams, preceding.words = previous.words,
+#                               discount = alpha.value)
+# print(predictions)
 
-predictions.table <- data.table(input.gram = filter(ngrams, n <= 4)$feature)
+# ngram.table <- ngrams
 
-#prediction.results <- map(predictions.table$input.gram, ApplySboScores)
+# MakePrediction <- function(ngram.table, prefix.words) {
+#   
+#   message(Sys.time(), " making prediction")
+#   
+#   # Set how many words should be offered as predictions
+#   predictions.needed <- 3L
+#   order.maximum <- 2L
+#   
+#   FindWords(ngram.table, prefix.words, order.maximum, predictions.needed)
+#   
+# }
 
+FindWords <- function(ngram.table, prefix.words, discount, order.maximum,
+                      predictions.needed) {
+  
+  # Create empty tables to be updated later
+  pred.table.upper <- tibble(feature = character(0), score = numeric(0))
+  pred.table.lower <- pred.table.upper
+  
+  # Truncate input text to maximum length supported by the model
+  prefix.words <- tail(prefix.words, order.maximum)
+  order.used <- length(prefix.words)  # Measure length
+  prefix.gram <- paste(prefix.words, collapse = "_")  # Change format
+  
+  # Check if preceding gram has been observed
+  ngram.vector <- ngram.table %>%
+    filter(n == order.used) %$%
+    feature
+  
+  if (prefix.gram %in% ngram.vector) {
+    
+    message(Sys.time(), " preceding ", order.used, " gram observed ",
+            "finding suffix words")
+    
+    n1gram.vector <- ngram.table %>%
+      filter(n == order.used + 1L) %$%
+      feature
+    
+    completing.grams <- GetCompletingGrams(prefix.gram = prefix.gram,
+                                    n1gram.vector = n1gram.vector)
+    
+    pred.table.upper <- ngram.table %>%
+      filter(feature %in% completing.grams) %>%
+      arrange(desc(frequency)) %>%
+      ApplyScores() %>%
+      slice(n = 1:predictions.needed) %>%
+      select(feature, score) %>%
+      arrange(desc(score))
+    
+    number.found <- length(completing.grams)
+    predictions.needed <- max(predictions.needed - number.found, 0L)
+    
+  }
+  
+  if (predictions.needed > 0) {
+    
+    order.maximum <- order.maximum - 1L
+    
+    pred.table.lower <- FindWords(ngram.table, prefix.words, discount,
+                                  order.maximum, predictions.needed)
+    pred.table.lower <- mutate(pred.table.lower, score = score * discount)
+    
+  }
+  
+  prediction.table <- bind_rows(pred.table.upper, pred.table.lower)
+  
+  return(prediction.table)
+  
+}
 
+prediction <- FindWords(ngrams, prefix.words, alpha.value, 2L, 3L)
+print(prediction)
 
+# Need to apply the alpha factoring
+# Need to chop prefix off of features
 
 
 

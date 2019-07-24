@@ -111,104 +111,91 @@ CountGrams <- function(ngram.vector) {
   
 }
 
-ApplyWCAttribute <- function(ngram.table) {
-  
-  # message(Sys.time(), " applying word count attribute")
-  
-  attr(ngram.table, "word.count") <- ngram.table %>%
-    filter(n == 1) %$%
+# ApplyWCAttribute <- function(ngram.table) {
+#   
+#   # message(Sys.time(), " applying word count attribute")
+#   
+#   attr(ngram.table, "word.count") <- ngram.table %>%
+#     filter(n == 1) %$%
+#     frequency %>%
+#     sum()
+#   
+#   return(ngram.table)
+#   
+# }
+
+GetCompletingGrams <- function(prefix.gram, n1gram.vector) {
+  prefix.pattern <- paste0("^", prefix.gram, "_")
+  completing.grams <- prefix.pattern %>%
+    grep(n1gram.vector, value = TRUE, useBytes = TRUE)
+
+  return(completing.grams)
+}
+
+# ApplyAlphaWords <- function (ngram.table) {
+#   
+#   message(Sys.time(), " finding alpha words and updating tables")
+#   
+#   unigrams <- filter(ngram.table, n == 1)
+#   bigrams <- filter(ngram.table, n == 2)
+#   trigrams <- filter(ngram.table, n == 3)
+#   
+#   uni.alpha.words <- map(unigrams$feature, GetAlphaWords,
+#                          n1gram.vector = bigrams$feature)
+#   unigrams <- mutate(unigrams, alpha.words = uni.alpha.words)
+#   
+#   bi.alpha.words <- map(bigrams$feature, GetAlphaWords,
+#                         n1gram.vector = trigrams$feature)
+#   bigrams <- mutate(bigrams, alpha.words = bi.alpha.words)
+#   
+#   trigrams <- mutate(trigrams, alpha.words = list(NA_character_))
+#   
+#   ngram.table <- bind_rows(unigrams, bigrams, trigrams)
+#   
+#   return(ngram.table)
+#   
+# }
+
+ApplyScores <- function(ngram.table) {
+
+  message(Sys.time(), " calculating sbo scores and updating table")
+
+  grams.count <- ngram.table %$%
     frequency %>%
     sum()
-  
+  ngram.table <- mutate(ngram.table, score = frequency / grams.count)
+
   return(ngram.table)
-  
-}
-
-GetAlphaWords <- function(prefix.ngram, n1gram.vector) {
-  prefix.pattern <- paste0(prefix.ngram, "_")
-  observed.suffixes <- prefix.pattern %>%
-    grep(n1gram.vector, value = TRUE, fixed = TRUE, useBytes = TRUE) %>%
-    sub(prefix.pattern, "", .)
-  
-  # Test if vector is empty, and replace with NA if TRUE
-  if (length(observed.suffixes) == 0) {
-    observed.suffixes <- NA_character_
-  }
-  
-  return(observed.suffixes)
-}
-
-ApplyAlphaWords <- function (ngram.table) {
-  
-  message(Sys.time(), " finding alpha words and updating tables")
-  
-  unigrams <- filter(ngram.table, n == 1)
-  bigrams <- filter(ngram.table, n == 2)
-  trigrams <- filter(ngram.table, n == 3)
-  
-  uni.alpha.words <- map(unigrams$feature, GetAlphaWords,
-                         n1gram.vector = bigrams$feature)
-  unigrams <- mutate(unigrams, alpha.words = uni.alpha.words)
-  
-  bi.alpha.words <- map(bigrams$feature, GetAlphaWords,
-                        n1gram.vector = trigrams$feature)
-  bigrams <- mutate(bigrams, alpha.words = bi.alpha.words)
-  
-  trigrams <- mutate(trigrams, alpha.words = list(NA_character_))
-  
-  ngram.table <- bind_rows(unigrams, bigrams, trigrams)
-  
-  return(ngram.table)
-  
-}
-
-ApplySbo1 <- function(ngram.table) {
-  
-  message(Sys.time(), " calculating sbo1s and updating table")
-  
-  word.count <- ngram.table %>%
-    attributes() %$%
-    word.count
-  unigram.portion <- ngram.table %>%
-    filter(n == 1) %>%
-    mutate(sbo1 = frequency / word.count)
-  other.portion <- ngram.table %>%
-    filter(n != 1) %>%
-    mutate(sbo1 = NA_real_)
-  
-  ngram.table <- bind_rows(unigram.portion, other.portion)
-  
-  return(ngram.table)
-  
-}
-
-GetSboScore <- function(word, preceding.words, alpha.words, ngram.table,
-                        n1gram.table, discount) {
-  
-  preceding.gram <- paste(preceding.words, collapse = "_")
-  
-  if (word %in% alpha.words) {
-    n1gram <- paste(preceding.gram, word, sep = "_")
-    n1gram.freq <- n1gram.table %>%
-      filter(feature == n1gram) %$%
-      frequency
-    ngram.freq <- ngram.table %>%
-      filter(feature == preceding.gram) %$%
-      frequency
-    sbo <- n1gram.freq / ngram.freq
-  } else {
-    order.searched <- length(preceding.words)
-    backoff.to <- paste0("sbo", order.searched)
-    sbo.i <- ngram.table %>%
-      filter(feature == word) %>%
-      .[[backoff.to]]
-      
-    sbo <- discount * sbo.i
-  }
-
-  return(sbo)
 
 }
+
+# GetSboScore <- function(word, preceding.words, alpha.words, ngram.table,
+#                         n1gram.table, discount) {
+#   
+#   preceding.gram <- paste(preceding.words, collapse = "_")
+#   
+#   if (word %in% alpha.words) {
+#     n1gram <- paste(preceding.gram, word, sep = "_")
+#     n1gram.freq <- n1gram.table %>%
+#       filter(feature == n1gram) %$%
+#       frequency
+#     ngram.freq <- ngram.table %>%
+#       filter(feature == preceding.gram) %$%
+#       frequency
+#     sbo <- n1gram.freq / ngram.freq
+#   } else {
+#     order.searched <- length(preceding.words)
+#     backoff.to <- paste0("sbo", order.searched)
+#     sbo.i <- ngram.table %>%
+#       filter(feature == word) %>%
+#       .[[backoff.to]]
+#       
+#     sbo <- discount * sbo.i
+#   }
+# 
+#   return(sbo)
+# 
+# }
 
 # ApplySboScores <- function(prefix.gram, ngram.table) {
 #   
@@ -232,54 +219,54 @@ GetSboScore <- function(word, preceding.words, alpha.words, ngram.table,
 # }
 
 # Need to update this function so it can handle variable input types for words
-MakePrediction <- function(ngram.table, preceding.words, discount) {
-  
-  message(Sys.time(), " making prediction")
-  
-  unigrams <- filter(ngram.table, n == 1)
-  bigrams <- filter(ngram.table, n == 2)
-
-  # Test if preceding word (v) has been observed
-  v.index <- length(preceding.words)
-  v.word <- preceding.words[[v.index]]
-  v.test <- v.word %in% unigrams$feature
-  
-  if (!v.test) {
-    
-    message(Sys.time(), " preceding word not observed, predicting from sbo1")
-    
-    prediction.table <- unigrams %>%
-      select(feature, sbo1) %>%
-      arrange(desc(sbo1))
-    
-  } else {
-    
-    message(Sys.time(), " preceding word observed, calculating sbo2")
-    
-    alpha.words.v <- unigrams %>%
-      filter(feature == v.word) %$%
-      alpha.words %>%
-      unlist()
-    
-    # Calculate sbo2 scores for all unigrams
-    sbo2.values <- map_dbl(unigrams$feature, GetSboScore,
-                           preceding.words = v.word,
-                           alpha.words = alpha.words.v, ngram.table = unigrams,
-                           n1gram.table = bigrams, discount = discount)
-    
-    unigrams <- mutate(unigrams, sbo2 = sbo2.values)
-    
-    prediction.table <- unigrams %>%
-      select(feature, sbo2) %>%
-      arrange(desc(sbo2))
-    
-  }
-    
-  message(Sys.time(), " prediction complete")
-  
-  return(prediction.table)
-  
-}
+# MakePrediction <- function(ngram.table, preceding.words, discount) {
+#   
+#   message(Sys.time(), " making prediction")
+#   
+#   unigrams <- filter(ngram.table, n == 1)
+#   bigrams <- filter(ngram.table, n == 2)
+# 
+#   # Test if preceding word (v) has been observed
+#   v.index <- length(preceding.words)
+#   v.word <- preceding.words[[v.index]]
+#   v.test <- v.word %in% unigrams$feature
+#   
+#   if (!v.test) {
+#     
+#     message(Sys.time(), " preceding word not observed, predicting from sbo1")
+#     
+#     prediction.table <- unigrams %>%
+#       select(feature, sbo1) %>%
+#       arrange(desc(sbo1))
+#     
+#   } else {
+#     
+#     message(Sys.time(), " preceding word observed, calculating sbo2")
+#     
+#     alpha.words.v <- unigrams %>%
+#       filter(feature == v.word) %$%
+#       alpha.words %>%
+#       unlist()
+#     
+#     # Calculate sbo2 scores for all unigrams
+#     sbo2.values <- map_dbl(unigrams$feature, GetSboScore,
+#                            preceding.words = v.word,
+#                            alpha.words = alpha.words.v, ngram.table = unigrams,
+#                            n1gram.table = bigrams, discount = discount)
+#     
+#     unigrams <- mutate(unigrams, sbo2 = sbo2.values)
+#     
+#     prediction.table <- unigrams %>%
+#       select(feature, sbo2) %>%
+#       arrange(desc(sbo2))
+#     
+#   }
+#     
+#   message(Sys.time(), " prediction complete")
+#   
+#   return(prediction.table)
+#   
+# }
 
 # MakePrediction <- function(ngram.table, preceding.words) {
 #   
@@ -352,7 +339,17 @@ MakePrediction <- function(ngram.table, preceding.words, discount) {
 # }
 
 
-# Previous work -----------------------------
+
+
+
+
+
+
+
+
+
+
+# Previous work ----------------------------------------------------------------
 
 # DLAndUnzipData <- function(data.filename = "Coursera-SwiftKey.zip",
 #                            profanity.filename = "profanity_list.txt") {
