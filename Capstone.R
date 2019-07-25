@@ -21,146 +21,23 @@ library(tidyverse)
 library(quanteda)
 library(magrittr)
 source("capstone_functions.R")
+quanteda_options("threads" = 6)
 
 
 # Part 1)-----------------------------------------------------------------------
 
-GetDataFrom <- function(method = c("scratch", "saved.object"), n.lines = -1L,
-                        n.grams = 5L) {
-  
-  method <- match.arg(method)
-  
-  if (method == "saved.object") {
-    
-    message(Sys.time(), " loading ngram table object from disk")
-    
-    # Code to load object from disk instead
-    ngram.table <- NULL    
+# Get tokenized and counted data from scratch or saved object
+tokens.level <- 5L
+ngram.table <- GetDataFrom("scratch", n.lines = 10000L, n.max = tokens.level,
+                           min.occurances = 1L)
 
-  } else {
-    
-    # Read in text, convert to corpus, and then convert to tokens
-    tokens.object <- AssembleCorpus(n.lines = n.lines) %>%
-      TokenizeAndClean(n = 1:n.grams)
-    
-    # Convert tokens object to table and perform calculations
-    ngram.table <- tokens.object %>%
-      dfm() %>%
-      textstat_frequency() %>%
-      as_tibble() %>%
-      select(feature, frequency) %>%
-      mutate(frequency = as.integer(frequency)) %>%
-      mutate(n = CountGrams(feature))
-      # filter(frequency > 1) %>%
-      # ApplyWCAttribute() %>%
-
-  }
-  
-  return(ngram.table)
-
-}
-
-ngram.table <- GetDataFrom("scratch", n.lines = 1000L, n.grams = 3L)
-
-# Set the discount value to use
-alpha.value <- 0.4
-
-# This is the first step that requires discount values
-# This is the first step that requires knowledge of the preceding word(s)
-text.input <- "the oil"
+# Define input text to predict from
+text.input <- "where in the world is"
 prefix.words <- str_split(text.input, pattern = " ") %>%
   unlist()
-# predictions <- MakePrediction(ngrams, preceding.words = previous.words,
-#                               discount = alpha.value)
-# print(predictions)
 
-# ngram.table <- ngrams
-
-# MakePrediction <- function(ngram.table, prefix.words) {
-#   
-#   message(Sys.time(), " making prediction")
-#   
-#   # Set how many words should be offered as predictions
-#   predictions.needed <- 3L
-#   order.maximum <- 2L
-#   
-#   FindWords(ngram.table, prefix.words, order.maximum, predictions.needed)
-#   
-# }
-
-FindWords <- function(ngram.table, prefix.words, discount, order.maximum) {
-  
-  predictions.desired <- 5L
-  predictions.found <- 0L
-  
-  # Create empty tables to be updated later
-  pred.table.upper <- tibble(feature = character(0), word = character(0),
-                             score = numeric(0))
-  pred.table.lower <- pred.table.upper
-
-  # Truncate input text to maximum length supported by the model
-  prefix.words <- tail(prefix.words, order.maximum)
-  order.used <- length(prefix.words)
-  prefix.gram <- paste(prefix.words, collapse = "_")  # Convert to gram format
-  
-  # Check if preceding gram has been observed
-  ngram.vector <- ngram.table %>%
-    filter(n == order.used) %$%
-    feature
-  
-  if (prefix.gram %in% ngram.vector) {
-    
-    message(Sys.time(), " preceding ", order.used, " gram observed ",
-            "finding suffix words")
-    
-    n1gram.vector <- ngram.table %>%
-      filter(n == order.used + 1L) %$%
-      feature
-    
-    completing.grams <- GetCompletingGrams(prefix.gram = prefix.gram,
-                                    n1gram.vector = n1gram.vector)
-    
-    completing.words <- ExtractWords(prefix.gram = prefix.gram,
-                                     n1gram.vector = completing.grams)
-    
-    pred.table.upper <- ngram.table %>%
-      filter(feature %in% completing.grams) %>%
-      mutate(word = completing.words) %>%
-      arrange(desc(frequency)) %>%
-      ApplyScores() %>%
-      slice(n = 1:predictions.desired) %>%
-      select(feature, word, score)
-    
-    number.found <- length(completing.grams)
-
-  }
-  
-  if (number.found < predictions.desired) {
-    
-    order.maximum <- order.maximum - 1L
-    
-    pred.table.lower <- FindWords(ngram.table, prefix.words, discount,
-                                  order.maximum)
-    pred.table.lower <- mutate(pred.table.lower, score = score * discount)
-    
-  }
-  
-  prediction.table <- bind_rows(pred.table.upper, pred.table.lower) %>%
-    arrange(desc(score)) %>%
-    distinct(word, .keep_all = TRUE) %>%
-    slice(n = 1:predictions.desired)
-  
-  return(prediction.table)
-  
-}
-
-prediction <- FindWords(ngram.table, prefix.words, alpha.value, 2L)
+prediction <- PredictWords(ngram.table = ngram.table,
+                           prefix.words = prefix.words,
+                           order.maximum = tokens.level, discount = 0.4)
 print(prediction)
-
-
-# Should store order in the table object
-# should retrieve the order instead of specifying it
-
-
-
 
