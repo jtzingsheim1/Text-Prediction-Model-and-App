@@ -20,28 +20,47 @@
 library(tidyverse)
 library(quanteda)
 library(magrittr)
-library(data.table)
 source("capstone_functions.R")
 
 
 # Part 1)-----------------------------------------------------------------------
 
-# Read in text, convert to corpus, and then convert to tokens
-ngrams <- AssembleCorpus(n.lines = 1000) %>%
-  TokenizeAndClean(n = 1:3)
+GetDataFrom <- function(method = c("scratch", "saved.object"), n.lines = -1L,
+                        n.grams = 5L) {
+  
+  method <- match.arg(method)
+  
+  if (method == "saved.object") {
+    
+    message(Sys.time(), " loading ngram table object from disk")
+    
+    # Code to load object from disk instead
+    ngram.table <- NULL    
 
-# Convert tokens object to table and perform calculations
-ngrams <- ngrams %>%
-  dfm() %>%
-  textstat_frequency() %>%
-  as_tibble() %>%
-  select(feature, frequency) %>%
-  mutate(frequency = as.integer(frequency)) %>%
-  mutate(n = CountGrams(feature))
-  # filter(frequency > 1) %>%
-  # ApplyAlphaWords() %>% 
-  # ApplyWCAttribute() %>%
-  # ApplySbo1()
+  } else {
+    
+    # Read in text, convert to corpus, and then convert to tokens
+    tokens.object <- AssembleCorpus(n.lines = n.lines) %>%
+      TokenizeAndClean(n = 1:n.grams)
+    
+    # Convert tokens object to table and perform calculations
+    ngram.table <- tokens.object %>%
+      dfm() %>%
+      textstat_frequency() %>%
+      as_tibble() %>%
+      select(feature, frequency) %>%
+      mutate(frequency = as.integer(frequency)) %>%
+      mutate(n = CountGrams(feature))
+      # filter(frequency > 1) %>%
+      # ApplyWCAttribute() %>%
+
+  }
+  
+  return(ngram.table)
+
+}
+
+ngram.table <- GetDataFrom("scratch", n.lines = 1000L, n.grams = 3L)
 
 # Set the discount value to use
 alpha.value <- 0.4
@@ -135,11 +154,10 @@ FindWords <- function(ngram.table, prefix.words, discount, order.maximum) {
   
 }
 
-prediction <- FindWords(ngrams, prefix.words, alpha.value, 2L)
+prediction <- FindWords(ngram.table, prefix.words, alpha.value, 2L)
 print(prediction)
 
-# need to do something about duplicate words
-# is it possible for the algorithm to return less than the desired # of preds
+
 # Should store order in the table object
 # should retrieve the order instead of specifying it
 
