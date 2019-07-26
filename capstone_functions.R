@@ -73,7 +73,7 @@ TokenizeAndClean <- function(corpus, n = 1:2) {
   message(Sys.time(), " tokenizing text with n = 1")
   
   # Build tokens object of unigrams
-  tokens.object <- tokens(corpus, what = "fastestword", remove_numbers = TRUE,
+  tokens.object <- tokens(corpus, what = "fasterword", remove_numbers = TRUE,
                           remove_punct = TRUE, remove_symbols = TRUE,
                           remove_twitter = TRUE, remove_hyphens = TRUE,
                           remove_url = TRUE, ngrams = 1, verbose = FALSE)
@@ -118,7 +118,7 @@ GetDataFrom <- function(method = c("scratch", "saved.object"), n.lines = -1L,
     message(Sys.time(), " loading ngram table object from disk")
     
     # Code to load object from disk instead
-    ngram.table <- NULL    
+    load("ngram_table.Rdata")    
     
   } else {
     
@@ -135,6 +135,8 @@ GetDataFrom <- function(method = c("scratch", "saved.object"), n.lines = -1L,
       mutate(frequency = as.integer(frequency)) %>%
       mutate(n = CountGrams(feature)) %>%
       filter(frequency > min.occurances)
+    
+    save(ngram.table, file = "ngram_table.Rdata")
 
   }
   
@@ -179,6 +181,8 @@ ExtractWords <- function(prefix.gram, n1gram.vector) {
 PredictWords <- function(ngram.table, prefix.words, order.maximum = 5L,
                          discount = 0.4) {
   
+  message(Sys.time(), " begin predicting words function")
+  
   predictions.desired <- 5L
   predictions.found <- 0L
   
@@ -200,7 +204,7 @@ PredictWords <- function(ngram.table, prefix.words, order.maximum = 5L,
   if (prefix.gram %in% ngram.vector) {
     
     message(Sys.time(), " preceding ", order.used, " gram observed ",
-            "finding suffix words")
+            "looking for suffix words")
     
     n1gram.vector <- ngram.table %>%
       filter(n == order.used + 1L) %$%

@@ -28,12 +28,15 @@ quanteda_options("threads" = 6)
 
 # Get tokenized and counted data from scratch or saved object
 tokens.level <- 5L
-ngram.table <- GetDataFrom("scratch", n.lines = 10000L, n.max = tokens.level,
-                           min.occurances = 1L)
+
+# ngram.table <- GetDataFrom("scratch", n.lines = 10000L, n.max = tokens.level,
+#                            min.occurances = 1L)
+
+ngram.table <- GetDataFrom("saved.object")
 
 # Define input text to predict from
-text.input <- "where in the world is"
-prefix.words <- str_split(text.input, pattern = " ") %>%
+prefix.words <- "what did they" %>%
+  str_split(pattern = " ") %>%
   unlist()
 
 prediction <- PredictWords(ngram.table = ngram.table,
