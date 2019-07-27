@@ -21,26 +21,33 @@ library(tidyverse)
 library(quanteda)
 library(magrittr)
 source("capstone_functions.R")
-quanteda_options("threads" = 6)
 
 
 # Part 1)-----------------------------------------------------------------------
 
 # Get tokenized and counted data from scratch or saved object
-tokens.level <- 5L
+tokens.level <- 4L
 
-# ngram.table <- GetDataFrom("scratch", n.lines = 10000L, n.max = tokens.level,
-#                            min.occurances = 1L)
+ngram.table <- GetDataFrom("scratch", n.lines = 450000L, n.max = tokens.level,
+                           min.occurances = 2L,
+                           file.name = "ngram_table_450_4.Rdata")
 
-ngram.table <- GetDataFrom("saved.object")
+# ngram.table <- GetDataFrom("saved.object",
+#                            file.name = "ngram_table_350_5.Rdata")
 
 # Define input text to predict from
-prefix.words <- "what did they" %>%
+prefix.words <- "this is" %>%
   str_split(pattern = " ") %>%
   unlist()
 
+message(Sys.time(), " begin predicting words")
+
 prediction <- PredictWords(ngram.table = ngram.table,
                            prefix.words = prefix.words,
-                           order.maximum = tokens.level, discount = 0.4)
+                           order.maximum = tokens.level - 1L, discount = 0.4)
+
+message(Sys.time(), " prediction complete, ngram.object is ",
+        format(object.size(ngram.table), units = "Mb"))
+
 print(prediction)
 

@@ -113,11 +113,11 @@ CountGrams <- function(ngram.vector) {
 }
 
 GetDataFrom <- function(method = c("scratch", "saved.object"), n.lines = -1L,
-                        n.max = 5L, min.occurances = 0L) {
+                        n.max = 5L, min.occurances = 1L,
+                        file.name = "ngram_table.Rdata") {
   
   method <- match.arg(method)
-  file.name <- "ngram_table.Rdata"
-  
+
   if (method == "saved.object") {
     
     message(Sys.time(), " loading ngram table object from disk")
@@ -140,22 +140,12 @@ GetDataFrom <- function(method = c("scratch", "saved.object"), n.lines = -1L,
       dfm() %>%
       dfm_trim(min_termfreq = min.occurances)
 
-    # message(Sys.time(), " applying textstat_frequency")
-    # ngram.object <- textstat_frequency(ngram.object)
-    
-    message(Sys.time(), " convert dfm to frequency table")
+    message(Sys.time(), " converting dfm to frequency table")
     ngram.object <- ngram.object %>%
       colSums() %>%
       enframe(name = "feature", value = "frequency") %>%
       mutate(frequency = as.integer((frequency))) %>%
       mutate(n = CountGrams(feature))
-    
-    # message(Sys.time(), " convert to tibble, subset, change data type")
-    # ngram.object <- ngram.object %>%
-    #   as_tibble() %>%
-    #   select(feature, frequency) %>%
-    #   mutate(frequency = as.integer(frequency)) %>%
-    #   mutate(n = CountGrams(feature))
     
     message(Sys.time(), " saving ngram.table object to disk")
     
@@ -177,7 +167,7 @@ GetCompletingGrams <- function(prefix.gram, n1gram.vector) {
 
 ApplyScores <- function(ngram.table) {
 
-  message(Sys.time(), " calculating sbo scores and updating table")
+  # message(Sys.time(), " calculating sbo scores and updating table")
 
   grams.count <- ngram.table %$%
     frequency %>%
@@ -190,7 +180,7 @@ ApplyScores <- function(ngram.table) {
 
 ExtractWords <- function(prefix.gram, n1gram.vector) {
   
-  message(Sys.time(), " extracting words from grams")
+  # message(Sys.time(), " extracting words from grams")
   
   prefix.pattern <- paste0(prefix.gram, "_")
   
@@ -201,10 +191,10 @@ ExtractWords <- function(prefix.gram, n1gram.vector) {
   
 }
 
-PredictWords <- function(ngram.table, prefix.words, order.maximum = 5L,
+PredictWords <- function(ngram.table, prefix.words, order.maximum = 4L,
                          discount = 0.4) {
   
-  message(Sys.time(), " begin predicting words function")
+  # message(Sys.time(), " begin predicting words function")
   
   predictions.desired <- 5L
   predictions.found <- 0L
@@ -253,13 +243,34 @@ PredictWords <- function(ngram.table, prefix.words, order.maximum = 5L,
   
   if (predictions.found < predictions.desired) {
     
+    message(Sys.time(), " insufficient quantity of words, continue search")
+    
     order.maximum <- order.maximum - 1L
     
-    pred.table.lower <- PredictWords(ngram.table = ngram.table,
-                                     prefix.words = prefix.words,
-                                     order.maximum = order.maximum,
-                                     discount = discount)
-    pred.table.lower <- mutate(pred.table.lower, score = score * discount)
+    # Need if statement to prevent an infinite loop
+    if (order.maximum > 0) {
+      
+      pred.table.lower <- PredictWords(ngram.table = ngram.table,
+                                       prefix.words = prefix.words,
+                                       order.maximum = order.maximum,
+                                       discount = discount)
+      pred.table.lower <- mutate(pred.table.lower, score = score * discount)
+      
+    } else {
+      
+      # Default to unigram frequency if insufficient bigram count
+      pred.table.lower <- ngram.table %>%
+        filter(n == 1) %>%
+        mutate(word = feature) %>%
+        arrange(desc(frequency)) %>%
+        ApplyScores() %>%
+        slice(n = 1:predictions.desired) %>%
+        select(feature, word, score) %>%
+        mutate(score = score * discount)
+      
+    }
+    
+
     
   }
   
