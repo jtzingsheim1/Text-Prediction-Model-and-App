@@ -58,7 +58,8 @@ AssembleCorpus <- function(n.lines,
   file.paths <- file.path(data.folder, file.names)  # Append file names to path
   
   # Read in the data and combine into a single corpus
-  text.list <- map(file.paths, readLines, n = n.lines, encoding = "UTF-8")
+  text.list <- map(file.paths, readLines, n = n.lines, encoding = "UTF-8",
+                   warn = FALSE)
   blogs.corp <- corpus(text.list[[1]])
   news.corp <- corpus(text.list[[2]])
   twitter.corp <- corpus(text.list[[3]])
@@ -89,6 +90,9 @@ TokenizeAndClean <- function(corpus, n = 1:2) {
   
   # Convert tokens object to include bigrams and trigrams
   tokens.object <- tokens(tokens.object, ngrams = n)
+  
+  message(Sys.time(), " tokens object is ", format(object.size(tokens.object),
+                                                   units = "Mb"))
 
   return(tokens.object)
   
@@ -96,7 +100,7 @@ TokenizeAndClean <- function(corpus, n = 1:2) {
 
 CountGrams <- function(ngram.vector) {
   
-  # message(Sys.time(), " counting grams")
+  message(Sys.time(), " counting grams")
   
   ngram.n0 <- ngram.vector %>%
     str_extract_all("_") %>%
@@ -112,35 +116,54 @@ GetDataFrom <- function(method = c("scratch", "saved.object"), n.lines = -1L,
                         n.max = 5L, min.occurances = 0L) {
   
   method <- match.arg(method)
+  file.name <- "ngram_table.Rdata"
   
   if (method == "saved.object") {
     
     message(Sys.time(), " loading ngram table object from disk")
     
     # Code to load object from disk instead
-    load("ngram_table.Rdata")    
+    load(file.name)    
     
   } else {
     
+    message(Sys.time(), " loading data from scratch with n.lines = ", n.lines)
+    
     # Read in text, convert to corpus, and then convert to tokens
-    tokens.object <- AssembleCorpus(n.lines = n.lines) %>%
+    ngram.object <- AssembleCorpus(n.lines = n.lines) %>%
       TokenizeAndClean(n = 1:n.max)
     
     # Convert tokens object to table and perform calculations
-    ngram.table <- tokens.object %>%
-      dfm() %>%
-      textstat_frequency() %>%
-      as_tibble() %>%
-      select(feature, frequency) %>%
-      mutate(frequency = as.integer(frequency)) %>%
-      mutate(n = CountGrams(feature)) %>%
-      filter(frequency > min.occurances)
     
-    save(ngram.table, file = "ngram_table.Rdata")
+    message(Sys.time(), " converting tokens to dfm, trimming low frequencies")
+    ngram.object <- ngram.object %>%
+      dfm() %>%
+      dfm_trim(min_termfreq = min.occurances)
+
+    # message(Sys.time(), " applying textstat_frequency")
+    # ngram.object <- textstat_frequency(ngram.object)
+    
+    message(Sys.time(), " convert dfm to frequency table")
+    ngram.object <- ngram.object %>%
+      colSums() %>%
+      enframe(name = "feature", value = "frequency") %>%
+      mutate(frequency = as.integer((frequency))) %>%
+      mutate(n = CountGrams(feature))
+    
+    # message(Sys.time(), " convert to tibble, subset, change data type")
+    # ngram.object <- ngram.object %>%
+    #   as_tibble() %>%
+    #   select(feature, frequency) %>%
+    #   mutate(frequency = as.integer(frequency)) %>%
+    #   mutate(n = CountGrams(feature))
+    
+    message(Sys.time(), " saving ngram.table object to disk")
+    
+    save(ngram.object, file = file.name)
 
   }
   
-  return(ngram.table)
+  return(ngram.object)
   
 }
 
