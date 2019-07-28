@@ -1,11 +1,4 @@
-#
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
+# Setup ------------------------------------------------------------------------
 
 library(shiny)
 library(tidyverse)
@@ -13,9 +6,11 @@ library(quanteda)
 library(magrittr)
 source("capstone_functions.R")
 
+# Load data table from disk
 ngram.table <- GetDataFrom("saved.object", file.name = "ngram_table.Rdata")
 
-# Define UI for application that draws a histogram
+
+# UI ---------------------------------------------------------------------------
 ui <- fluidPage(
 
     # Application title
@@ -24,34 +19,50 @@ ui <- fluidPage(
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
         sidebarPanel(
-            textInput("textEntered", "Your Text"),
-            # sliderInput("bins",
-            #             "Number of bins:",
-            #             min = 1,
-            #             max = 50,
-            #             value = 30),
-            submitButton("Predict Next Word")
+            textInput("text.entered", "Your Text"),
+            actionButton("submit.text", "Predict Next Word")
         ),
 
         # Show a plot of the generated distribution
         mainPanel(
-           dataTableOutput("predictionOutput")
+           tableOutput("prediction.output")
         )
     )
 )
 
-# Define server logic required to draw a histogram
+
+# Server -----------------------------------------------------------------------
 server <- function(input, output) {
-
-    output$distPlot <- renderPlot({
-        # generate bins based on input$bins from ui.R
-        x    <- faithful[, 2]
-        bins <- seq(min(x), max(x), length.out = input$bins + 1)
-
-        # draw the histogram with the specified number of bins
-        hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    
+    RollTheDice <- eventReactive(input$submit.text, {
+        
+        message(Sys.time(), " button clicked, collect input and predict")
+        
+        # Collect input text to predict from
+        prefix.words <- input$text.entered %>%
+            gsub(pattern = '[[:punct:]]', replacement = "", .) %>%
+            str_split(pattern = " ") %>%
+            unlist()
+        
+        predictions <- PredictWords(ngram.table = ngram.table,
+                                    prefix.words = prefix.words)
+        
+        message(Sys.time(), " prediction complete")
+        
+        list(predictions = predictions)
+        
+    })
+    
+    output$prediction.output <- renderTable({
+        
+        message(Sys.time(), " rendering output table")
+        
+        RollTheDice()$predictions
+        
     })
 }
 
-# Run the application 
+
+# App --------------------------------------------------------------------------
 shinyApp(ui = ui, server = server)
+
