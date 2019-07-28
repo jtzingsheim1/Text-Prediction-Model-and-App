@@ -191,7 +191,7 @@ ExtractWords <- function(prefix.gram, n1gram.vector) {
   
 }
 
-PredictWords <- function(ngram.table, prefix.words, order.maximum = 4L,
+PredictWords <- function(ngram.table, prefix.words, order.maximum = 3L,
                          discount = 0.4) {
   
   # message(Sys.time(), " begin predicting words function")
@@ -200,8 +200,8 @@ PredictWords <- function(ngram.table, prefix.words, order.maximum = 4L,
   predictions.found <- 0L
   
   # Create empty tables to be updated later
-  pred.table.upper <- tibble(feature = character(0), word = character(0),
-                             score = numeric(0))
+  pred.table.upper <- tibble(word = character(0), score = numeric(0),
+                             feature = character(0))
   pred.table.lower <- pred.table.upper
   
   # Truncate input text to maximum length supported by the model
@@ -216,8 +216,8 @@ PredictWords <- function(ngram.table, prefix.words, order.maximum = 4L,
   
   if (prefix.gram %in% ngram.vector) {
     
-    message(Sys.time(), " preceding ", order.used, " gram observed ",
-            "looking for suffix words")
+    # message(Sys.time(), " preceding ", order.used, " gram observed ",
+    #         "looking for suffix words")
     
     n1gram.vector <- ngram.table %>%
       filter(n == order.used + 1L) %$%
@@ -235,7 +235,7 @@ PredictWords <- function(ngram.table, prefix.words, order.maximum = 4L,
       arrange(desc(frequency)) %>%
       ApplyScores() %>%
       slice(n = 1:predictions.desired) %>%
-      select(feature, word, score)
+      select(word, score, feature)
     
     predictions.found <- length(completing.grams)
     
@@ -243,7 +243,7 @@ PredictWords <- function(ngram.table, prefix.words, order.maximum = 4L,
   
   if (predictions.found < predictions.desired) {
     
-    message(Sys.time(), " insufficient quantity of words, continue search")
+    # message(Sys.time(), " insufficient quantity of words, continue search")
     
     order.maximum <- order.maximum - 1L
     
@@ -265,12 +265,10 @@ PredictWords <- function(ngram.table, prefix.words, order.maximum = 4L,
         arrange(desc(frequency)) %>%
         ApplyScores() %>%
         slice(n = 1:predictions.desired) %>%
-        select(feature, word, score) %>%
+        select(word, score, feature) %>%
         mutate(score = score * discount)
       
     }
-    
-
     
   }
   
