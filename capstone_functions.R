@@ -74,7 +74,7 @@ TokenizeAndClean <- function(corpus, n = 1:2) {
   message(Sys.time(), " tokenizing text with n = 1")
   
   # Build tokens object of unigrams
-  tokens.object <- tokens(corpus, what = "fasterword", remove_numbers = TRUE,
+  tokens.object <- tokens(corpus, what = "word", remove_numbers = TRUE,
                           remove_punct = TRUE, remove_symbols = TRUE,
                           remove_twitter = TRUE, remove_hyphens = TRUE,
                           remove_url = TRUE, ngrams = 1, verbose = FALSE)

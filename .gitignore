@@ -1,6 +1,6 @@
 .Rproj.user
 .Rhistory
-.RData
+*.RData
 .Ruserdata
 Capstone.Rproj
 Coursera-SwiftKey.zip
@@ -8,7 +8,4 @@ final/
 milestone_report_cache/
 Milestone Report/rsconnect/
 profanity_list.txt
-ngram_table.Rdata
-ngram_table_350_5.Rdata
-ngram_table_450_4.Rdata
 

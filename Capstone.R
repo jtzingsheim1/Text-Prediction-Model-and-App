@@ -23,20 +23,21 @@ library(magrittr)
 source("capstone_functions.R")
 
 
-# Predict from 5 grams ---------------------------------------------------------
+# Predictions ------------------------------------------------------------------
 
 # Get tokenized and counted data from scratch or saved object
-tokens.level <- 5L
+tokens.level <- 4L
 
-# ngram.table <- GetDataFrom("scratch", n.lines = 450000L, n.max = tokens.level,
+# ngram.table <- GetDataFrom("scratch", n.lines = 400000L, n.max = tokens.level,
 #                            min.occurances = 2L,
-#                            file.name = "ngram_table_450_4.Rdata")
+#                            file.name = "ngram_table_400_4w.Rdata")
 
 ngram.table <- GetDataFrom("saved.object",
-                           file.name = "ngram_table_350_5.Rdata")
+                           file.name = "ngram_table_400_4w.Rdata")
 
 # Define input text to predict from
-prefix.words <- "where in the world is" %>%
+prefix.words <- "one giant leap for" %>%
+  gsub(pattern = '[[:punct:]]', replacement = "", .) %>%
   str_split(pattern = " ") %>%
   unlist()
 
@@ -51,35 +52,3 @@ message(Sys.time(), " prediction complete, ngram.object is ",
 
 print(prediction)
 
-
-# Predict from 4 grams ---------------------------------------------------------
-
-# Get tokenized and counted data from scratch or saved object
-tokens.level <- 4L
-
-# ngram.table <- GetDataFrom("scratch", n.lines = 450000L, n.max = tokens.level,
-#                            min.occurances = 2L,
-#                            file.name = "ngram_table_450_4.Rdata")
-
-ngram.table <- GetDataFrom("saved.object",
-                           file.name = "ngram_table_350_5.Rdata")
-
-# # Define input text to predict from
-# prefix.words <- "this is" %>%
-#   str_split(pattern = " ") %>%
-#   unlist()
-
-message(Sys.time(), " begin predicting words")
-
-prediction <- PredictWords(ngram.table = ngram.table,
-                           prefix.words = prefix.words,
-                           order.maximum = tokens.level - 1L, discount = 0.4)
-
-message(Sys.time(), " prediction complete, ngram.object is ",
-        format(object.size(ngram.table), units = "Mb"))
-
-print(prediction)
-
-
-# how would the model react to punctuation?
-# fasterword is not handling punctuation well
