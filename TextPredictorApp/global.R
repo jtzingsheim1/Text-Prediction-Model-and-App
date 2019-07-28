@@ -281,3 +281,7 @@ PredictWords <- function(ngram.table, prefix.words, order.maximum = 3L,
   
 }
 
+
+# Load data table from disk
+ngram.table <- GetDataFrom("saved.object", file.name = "ngram_table.Rdata")
+

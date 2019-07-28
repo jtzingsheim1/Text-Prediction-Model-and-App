@@ -4,10 +4,7 @@ library(shiny)
 library(tidyverse)
 library(quanteda)
 library(magrittr)
-source("capstone_functions.R")
-
-# Load data table from disk
-ngram.table <- GetDataFrom("saved.object", file.name = "ngram_table.Rdata")
+source("global.R")
 
 
 # UI ---------------------------------------------------------------------------

@@ -20,23 +20,23 @@
 library(tidyverse)
 library(quanteda)
 library(magrittr)
-source("capstone_functions.R")
+source("TextPredictorApp/global.R")
 
 
 # Predictions ------------------------------------------------------------------
 
 # Get tokenized and counted data from scratch or saved object
-tokens.level <- 4L
+# tokens.level <- 4L
 
 # ngram.table <- GetDataFrom("scratch", n.lines = 400000L, n.max = tokens.level,
 #                            min.occurances = 2L,
 #                            file.name = "ngram_table_400_4w.Rdata")
 
 ngram.table <- GetDataFrom("saved.object",
-                           file.name = "ngram_table_400_4w.Rdata")
+                           file.name = "TextPredictorApp/ngram_table.Rdata")
 
 # Define input text to predict from
-prefix.words <- "one giant leap for" %>%
+prefix.words <- "asldkfjasdlkfjadf" %>%
   gsub(pattern = '[[:punct:]]', replacement = "", .) %>%
   str_split(pattern = " ") %>%
   unlist()
@@ -45,7 +45,7 @@ message(Sys.time(), " begin predicting words")
 
 prediction <- PredictWords(ngram.table = ngram.table,
                            prefix.words = prefix.words,
-                           order.maximum = tokens.level - 1L, discount = 0.4)
+                           order.maximum = 3L, discount = 0.4)
 
 message(Sys.time(), " prediction complete, ngram.object is ",
         format(object.size(ngram.table), units = "Mb"))
