@@ -20,35 +20,30 @@
 library(tidyverse)
 library(quanteda)
 library(magrittr)
-source("TextPredictorApp/global.R")
+source("TextPredictorApp/global.R")  # Contains global functions for app
 
 
-# Predictions ------------------------------------------------------------------
+# Script Version of App --------------------------------------------------------
 
-# Get tokenized and counted data from scratch or saved object
-# tokens.level <- 4L
-
-# ngram.table <- GetDataFrom("scratch", n.lines = 400000L, n.max = tokens.level,
-#                            min.occurances = 2L,
-#                            file.name = "ngram_table_400_4w.Rdata")
-
+# Load data from disk
 ngram.table <- GetDataFrom("saved.object",
                            file.name = "TextPredictorApp/ngram_table.Rdata")
 
-# Define input text to predict from
-prefix.words <- "asldkfjasdlkfjadf" %>%
-  gsub(pattern = '[[:punct:]]', replacement = "", .) %>%
-  str_split(pattern = " ") %>%
-  unlist()
+# Enter text to predict from
+prefix.words <- PrepareInputText("Where in the world is")
 
-message(Sys.time(), " begin predicting words")
+# Profiling message
+# message(Sys.time(), " begin predicting words")
 
+# Make prediction
 prediction <- PredictWords(ngram.table = ngram.table,
                            prefix.words = prefix.words,
                            order.maximum = 3L, discount = 0.4)
 
-message(Sys.time(), " prediction complete, ngram.object is ",
-        format(object.size(ngram.table), units = "Mb"))
+# Profiling message
+# message(Sys.time(), " prediction complete, ngram.object is ",
+#         format(object.size(ngram.table), units = "Mb"))
 
-print(prediction)
+# Print prediction output if desired
+# print(prediction)
 
