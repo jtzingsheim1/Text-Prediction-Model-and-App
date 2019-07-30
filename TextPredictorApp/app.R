@@ -34,7 +34,7 @@
 # Load packages and scripts
 library(shiny)
 library(tidyverse)
-library(quanteda)
+# library(quanteda)  # Attempt shiny upload with quanteda disabled
 library(magrittr)
 source("global.R")
 
