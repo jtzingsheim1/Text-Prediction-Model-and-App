@@ -10,7 +10,7 @@ folder contains my work for one of the key deliverables: the application.
 [1]: https://www.coursera.org/learn/data-science-project  "DS Capstone Site"
 [2]: https://www.coursera.org/specializations/jhu-data-science  "DS Spec."
 [3]: https://github.com/jtzingsheim1/Text-Prediction-Model-and-App  "project repo"
-[4]: xxxxx  "app on shinyapps.io"
+[4]: https://jtzingsheim.shinyapps.io/TextPredictorApp/  "app on shinyapps.io"
 
 
 ## Detailed Description
@@ -27,10 +27,14 @@ itself, and a presentation.
 The app is hosted on shinyapps.io and can be accessed [here][4]. The files in
 this repo are described below:
 
- - app.R: the application file
- - global.R: all the function definitions for the app or the precursor script
+ - app.R: the application file, use instructions are included in the app itself.
+ - global.R: all the function definitions for the app or the precursor script.
  - precursor_script.R: file was used throughout development to simulate the
- results before building the actual application
+ results before building the actual application.
+ - ngram_table.Rdata: this file accompanies the actual app on the shiny servers,
+ but it is not included as part of the GiyHub repo. The generate the file
+ locally the script configuration should be changed to generate the desired data
+ file.
 
 The user provides input to a text box. The app reads in the text and applies the
 prediction model to offer up predictions for the next word. The model is based
