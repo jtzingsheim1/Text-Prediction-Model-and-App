@@ -32,7 +32,7 @@ this repo are described below:
  - precursor_script.R: file was used throughout development to simulate the
  results before building the actual application.
  - ngram_table.Rdata: this file accompanies the actual app on the shiny servers,
- but it is not included as part of the GiyHub repo. The generate the file
+ but it is not included as part of the GitHub repo. The generate the file
  locally the script configuration should be changed to generate the desired data
  file.
 
