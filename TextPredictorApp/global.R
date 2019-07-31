@@ -169,7 +169,7 @@ GetDataFrom <- function(method = c("scratch", "saved.object"),
   #   min.occurances: minimum frequency needed to include an ngram in the result
   #
   # Returns:
-  #   A two column tibble of features and their frequencies
+  #   A three column tibble of features, their frequencies, and their order (n)
   
   # Check and set input arguments
   method <- match.arg(method)
